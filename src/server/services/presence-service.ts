@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db';
+import { isDemoMode } from '@/demo/mode';
 
 const STALE_MS = 25_000;
 
@@ -7,6 +8,9 @@ export async function heartbeatPresence(input: {
   userId: string;
   focusPositionId?: string | null;
 }) {
+  if (isDemoMode()) {
+    return { viewers: [], revision: null, revisionAt: null };
+  }
   const now = new Date();
   await prisma.chartPresence.upsert({
     where: {

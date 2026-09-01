@@ -4,8 +4,11 @@ import { pullSupabasePeople } from '@/connectors/supabase';
 import { addPersonSkill } from '@/server/services/skill-service';
 import { suggestSkillsFromSources } from '@/domain/skills/extract';
 import type { ExternalPerson } from '@/connectors/types';
+import { isDemoMode, assertWritable } from '@/demo/mode';
+import { demoDirectory } from '@/demo/northstar';
 
 export async function listLiveDirectory(organisationId: string) {
+  if (isDemoMode()) return demoDirectory();
   const people = await prisma.person.findMany({
     where: { organisationId, deletedAt: null },
     orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
@@ -39,6 +42,7 @@ export async function listLiveDirectory(organisationId: string) {
 }
 
 export async function previewDirectorySource(organisationId: string, connectorId: string) {
+  assertWritable();
   const connector = await prisma.connector.findFirst({
     where: { id: connectorId, organisationId },
   });
@@ -63,6 +67,7 @@ export async function previewDirectorySource(organisationId: string, connectorId
 }
 
 export async function applyDirectoryPeople(organisationId: string, rows: ExternalPerson[]) {
+  assertWritable();
   let created = 0;
   let updated = 0;
   for (const row of rows) {

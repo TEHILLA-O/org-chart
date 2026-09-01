@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db';
 import { ForbiddenError } from '@/lib/errors';
 import { type Actor, type PermissionAction, assertCan } from '@/domain/permissions/policy';
 import type { OrgRole } from '@prisma/client';
+import { isDemoMode } from '@/demo/mode';
+import { demoSession } from '@/demo/northstar';
 
 export interface SessionContext {
   userId: string;
@@ -13,6 +15,9 @@ export interface SessionContext {
 }
 
 async function guestContext(): Promise<SessionContext> {
+  if (isDemoMode()) {
+    return demoSession();
+  }
   const membership =
     (await prisma.organisationMembership.findFirst({
       where: { role: 'OWNER' },
@@ -80,6 +85,10 @@ async function contextFromSession(
 }
 
 export async function requireSession(): Promise<{ userId: string; email: string }> {
+  if (isDemoMode()) {
+    const guest = demoSession();
+    return { userId: guest.userId, email: guest.email };
+  }
   const session = await auth();
   if (session?.user?.id) {
     return { userId: session.user.id, email: session.user.email ?? '' };
@@ -92,6 +101,11 @@ export async function requireOrgContext(
   organisationId?: string,
   action: PermissionAction = 'org:read',
 ): Promise<SessionContext> {
+  if (isDemoMode()) {
+    const guest = demoSession();
+    assertCan(guest.actor, action);
+    return guest;
+  }
   const session = await auth();
   if (session?.user?.id) {
     return contextFromSession(

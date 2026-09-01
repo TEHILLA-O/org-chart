@@ -9,10 +9,12 @@ export function AppShell({
   children,
   userEmail,
   role,
+  demo,
 }: {
   children: React.ReactNode;
   userEmail: string;
   role: string;
+  demo?: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
@@ -28,8 +30,13 @@ export function AppShell({
       />
       <div className="flex min-w-0 flex-1 flex-col">
         {isChart ? null : (
-          <header className="no-print flex h-14 shrink-0 items-center px-6">
+          <header className="no-print flex h-14 shrink-0 items-center justify-between gap-4 px-6">
             <p className="text-sm text-[var(--muted-foreground)]">Northstar Holdings</p>
+            {demo ? (
+              <p className="text-xs text-[var(--muted-foreground)]">
+                Hosted demo — in-memory data, changes are not saved
+              </p>
+            ) : null}
           </header>
         )}
         <main className={cn('min-h-0 flex-1 overflow-auto', isChart && 'overflow-hidden p-0')}>

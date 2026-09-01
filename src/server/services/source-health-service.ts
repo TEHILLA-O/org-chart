@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/db';
 import { connectorMode, resolveConnector } from '@/connectors/registry';
 import { applyMockRipplingLeave } from '@/connectors/rippling-mock/live-fields';
+import { isDemoMode } from '@/demo/mode';
+import { demoConnectors } from '@/demo/northstar';
 
 export interface SourceHealth {
   connectorId: string;
@@ -15,6 +17,25 @@ export interface SourceHealth {
 }
 
 export async function checkAllSources(organisationId: string, options?: { refreshMockLeave?: boolean }) {
+  if (isDemoMode()) {
+    const now = new Date().toISOString();
+    return {
+      checkedAt: now,
+      liveCount: demoConnectors().length,
+      total: demoConnectors().length,
+      sources: demoConnectors().map((connector) => ({
+        connectorId: connector.id,
+        provider: connector.provider,
+        name: connector.name,
+        status: connector.status,
+        mode: connector.mode,
+        lastSyncAt: connector.lastSyncAt,
+        lastSuccessfulSyncAt: connector.lastSuccessfulSyncAt,
+        identityCount: connector.identityCount,
+        test: { ok: true, message: 'Demo source is live in memory.' },
+      })),
+    };
+  }
   const connectors = await prisma.connector.findMany({
     where: { organisationId },
     orderBy: { createdAt: 'asc' },

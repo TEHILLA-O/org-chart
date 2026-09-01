@@ -4,6 +4,8 @@ import { getCorrelationId } from '@/lib/correlation';
 import { ConflictError, NotFoundError } from '@/lib/errors';
 import type { Actor } from '@/domain/permissions/policy';
 import { loadOrgGroups } from '@/repositories/org-repository';
+import { assertWritable, isDemoMode } from '@/demo/mode';
+import { demoMemberships } from '@/demo/northstar';
 
 export const CreateGroupBody = z.object({
   name: z.string().min(2).max(80),
@@ -14,6 +16,16 @@ export const CreateGroupBody = z.object({
 
 export async function listGroups(organisationId: string) {
   const groups = await loadOrgGroups(organisationId);
+  if (isDemoMode()) {
+    const countById = new Map<string, number>();
+    for (const row of demoMemberships) {
+      countById.set(row.groupId, (countById.get(row.groupId) ?? 0) + 1);
+    }
+    return groups.map((group) => ({
+      ...group,
+      memberCount: countById.get(group.id) ?? 0,
+    }));
+  }
   const counts = await prisma.personGroupMembership.groupBy({
     by: ['groupId'],
     where: { organisationId },
@@ -31,6 +43,7 @@ export async function createGroup(input: {
   actor: Actor;
   body: z.infer<typeof CreateGroupBody>;
 }) {
+  assertWritable();
   const slug = slugify(input.body.name);
   const existing = await prisma.orgGroup.findFirst({
     where: { organisationId: input.organisationId, slug, deletedAt: null },
@@ -73,6 +86,7 @@ export async function setPersonGroups(input: {
   personId: string;
   groupIds: string[];
 }) {
+  assertWritable();
   const person = await prisma.person.findFirst({
     where: { id: input.personId, organisationId: input.organisationId, deletedAt: null },
   });

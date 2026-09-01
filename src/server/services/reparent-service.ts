@@ -6,6 +6,7 @@ import type { Actor } from '@/domain/permissions/policy';
 import { can } from '@/domain/permissions/policy';
 import { applyScenarioOverlay } from '@/domain/scenario/overlay';
 import { loadLiveOrOverlayGraph, toChangeViews } from '@/server/services/scenario-service';
+import { assertWritable } from '@/demo/mode';
 
 export type ChartMode = 'LIVE' | 'PLANNING';
 
@@ -20,6 +21,7 @@ export async function reparentPosition(input: {
   if (!can(input.actor, 'relationships:write')) {
     throw new ForbiddenError();
   }
+  assertWritable();
 
   assertNoSelfReporting(input.subordinatePositionId, input.managerPositionId);
 

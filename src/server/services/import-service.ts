@@ -7,6 +7,7 @@ import { suggestColumnMap, type ImportField } from '@/domain/import/columns';
 import { mapImportRows } from '@/domain/import/validate';
 import { detectPrimaryCycle } from '@/domain/org/cycle';
 import { can, type Actor } from '@/domain/permissions/policy';
+import { assertWritable } from '@/demo/mode';
 
 const MAX_ROWS = 2_000;
 
@@ -20,6 +21,7 @@ export async function createImportJob(input: {
   if (!can(input.actor, 'people:write')) {
     throw new ForbiddenError();
   }
+  assertWritable();
   if (Buffer.byteLength(input.text, 'utf8') > config().IMPORT_MAX_BYTES) {
     throw new ValidationAppError('That file is larger than the import limit.');
   }

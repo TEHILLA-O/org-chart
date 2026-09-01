@@ -2,8 +2,13 @@ import { z } from 'zod';
 import { apiHandler, json } from '@/server/http/handler';
 import { createVacancy } from '@/server/services/vacancy-service';
 import { prisma } from '@/lib/db';
+import { isDemoMode } from '@/demo/mode';
+import { demoPositionsList } from '@/demo/northstar';
 
 export const GET = apiHandler('positions:read', async (ctx) => {
+  if (isDemoMode()) {
+    return json({ positions: demoPositionsList() });
+  }
   const positions = await prisma.position.findMany({
     where: { organisationId: ctx.organisationId, deletedAt: null },
     orderBy: { title: 'asc' },

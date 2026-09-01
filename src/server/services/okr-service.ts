@@ -1,7 +1,9 @@
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
-import { NotFoundError } from '@/lib/errors';
+import { NotFoundError, ValidationAppError } from '@/lib/errors';
 import type { Actor } from '@/domain/permissions/policy';
+import { isDemoMode } from '@/demo/mode';
+import { demoObjectives } from '@/demo/northstar';
 
 export const CreateObjectiveBody = z.object({
   title: z.string().min(3).max(160),
@@ -21,6 +23,7 @@ export const CreateObjectiveBody = z.object({
 });
 
 export async function listObjectives(organisationId: string) {
+  if (isDemoMode()) return demoObjectives();
   return prisma.objective.findMany({
     where: { organisationId, deletedAt: null },
     orderBy: { createdAt: 'desc' },
@@ -36,6 +39,9 @@ export async function createObjective(input: {
   actor: Actor;
   body: z.infer<typeof CreateObjectiveBody>;
 }) {
+  if (isDemoMode()) {
+    throw new ValidationAppError('This hosted demo is read-only until a database is connected.');
+  }
   return prisma.objective.create({
     data: {
       organisationId: input.organisationId,
@@ -61,6 +67,16 @@ export async function updateKeyResult(
   keyResultId: string,
   currentValue: number,
 ) {
+  if (isDemoMode()) {
+    for (const objective of demoObjectives()) {
+      const kr = objective.keyResults.find((item) => item.id === keyResultId);
+      if (kr) {
+        kr.currentValue = currentValue;
+        return kr;
+      }
+    }
+    throw new NotFoundError('Key result not found.');
+  }
   const row = await prisma.keyResult.findFirst({
     where: { id: keyResultId, objective: { organisationId, deletedAt: null } },
   });

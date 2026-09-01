@@ -6,6 +6,7 @@ import { hashShareToken, randomToken } from '@/lib/crypto';
 import { ForbiddenError, NotFoundError, UnauthorizedError, ValidationAppError } from '@/lib/errors';
 import { can, type Actor } from '@/domain/permissions/policy';
 import { getChartPayload, requireDefaultChart } from '@/server/services/chart-service';
+import { assertWritable, isDemoMode } from '@/demo/mode';
 
 function shareUrls(token: string) {
   const origin = config().APP_URL.replace(/\/$/, '');
@@ -46,6 +47,9 @@ export async function listShareLinks(organisationId: string, actor: Actor) {
   if (!can(actor, 'share:manage')) {
     throw new ForbiddenError();
   }
+  if (isDemoMode()) {
+    return { shares: [] as ReturnType<typeof summariseShare>[] };
+  }
   const links = await prisma.shareLink.findMany({
     where: { organisationId },
     orderBy: { createdAt: 'desc' },
@@ -65,6 +69,7 @@ export async function createShareLink(input: {
   if (!can(input.actor, 'share:manage')) {
     throw new ForbiddenError();
   }
+  assertWritable();
 
   const chart = await requireDefaultChart(input.organisationId);
   const token = randomToken();
@@ -111,6 +116,7 @@ export async function revokeShareLink(organisationId: string, actor: Actor, id: 
   if (!can(actor, 'share:manage')) {
     throw new ForbiddenError();
   }
+  assertWritable();
   const link = await prisma.shareLink.findFirst({ where: { id, organisationId } });
   if (!link) throw new NotFoundError('Share link not found.');
   if (link.revokedAt) return summariseShare(link);

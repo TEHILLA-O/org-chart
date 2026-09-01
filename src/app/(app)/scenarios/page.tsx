@@ -6,11 +6,24 @@ import { requireOrgContext } from '@/server/auth/session';
 import { loadOrganisationGraph } from '@/repositories/org-repository';
 import { applyScenarioOverlay, diffPrimaryManagers } from '@/domain/scenario/overlay';
 import { toChangeViews } from '@/server/services/scenario-service';
+import { isDemoMode } from '@/demo/mode';
 
 export default async function ScenariosPage() {
   const ctx = await requireOrgContext(undefined, 'scenarios:read');
   const [scenarios, live] = await Promise.all([
-    prisma.scenario.findMany({
+    isDemoMode()
+      ? Promise.resolve([
+          {
+            id: 'scenario-demo',
+            name: '2027 Restructure',
+            description: 'Planning sandbox — does not touch live data',
+            status: 'DRAFT',
+            changes: [],
+            baseSnapshot: null,
+            _count: { changes: 0 },
+          },
+        ])
+      : prisma.scenario.findMany({
       where: { organisationId: ctx.organisationId, deletedAt: null },
       orderBy: { createdAt: 'desc' },
       include: {
@@ -49,7 +62,8 @@ export default async function ScenariosPage() {
                   <p className="text-lg font-semibold">{scenario.name}</p>
                   <p className="text-sm text-[var(--muted-foreground)]">{scenario.description}</p>
                   <p className="mt-2 text-xs uppercase">
-                    {scenario.status} · {scenario._count.changes} changes · base {scenario.baseSnapshot.name}
+                    {scenario.status} · {scenario._count.changes} changes · base{' '}
+                    {scenario.baseSnapshot?.name ?? 'live organisation'}
                   </p>
                 </div>
                 <Button asChild>

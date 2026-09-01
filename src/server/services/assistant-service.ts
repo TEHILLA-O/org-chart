@@ -3,6 +3,8 @@ import { buildReportingGraph } from '@/domain/org/graph';
 import { loadOrganisationGraph, loadOrgGroups } from '@/repositories/org-repository';
 import { completeOrgChat, isDeepSeekConfigured } from '@/server/llm/deepseek';
 import { ForbiddenError, ValidationAppError } from '@/lib/errors';
+import { isDemoMode } from '@/demo/mode';
+import { demoOrganisation, demoPeople } from '@/demo/northstar';
 
 export interface AssistantSettings {
   privacyReviewComplete: boolean;
@@ -25,11 +27,21 @@ async function organisationFacts(organisationId: string, limit = 80) {
   const [graphInput, groups, skills] = await Promise.all([
     loadOrganisationGraph(organisationId),
     loadOrgGroups(organisationId),
-    prisma.personSkill.findMany({
-      where: { organisationId },
-      include: { skill: true, person: { select: { id: true, displayName: true } } },
-      take: 400,
-    }),
+    isDemoMode()
+      ? Promise.resolve(
+          demoPeople.flatMap((person) =>
+            person.skills.map((name) => ({
+              personId: person.id,
+              skill: { name },
+              person: { id: person.id, displayName: person.displayName },
+            })),
+          ),
+        )
+      : prisma.personSkill.findMany({
+          where: { organisationId },
+          include: { skill: true, person: { select: { id: true, displayName: true } } },
+          take: 400,
+        }),
   ]);
   const graph = buildReportingGraph(graphInput);
   const groupName = new Map(groups.map((group) => [group.id, group.name]));
@@ -73,7 +85,7 @@ export async function lookupEmployeeBrief(organisationId: string, query: string)
   const [graphInput, groups, organisation] = await Promise.all([
     loadOrganisationGraph(organisationId),
     loadOrgGroups(organisationId),
-    prisma.organisation.findFirst({ where: { id: organisationId } }),
+    isDemoMode() ? Promise.resolve(demoOrganisation()) : prisma.organisation.findFirst({ where: { id: organisationId } }),
   ]);
   const graph = buildReportingGraph(graphInput);
   const settings = readAssistantSettings(organisation?.settings);
@@ -139,7 +151,9 @@ export async function lookupEmployeeBrief(organisationId: string, query: string)
 }
 
 export async function askOrganisation(organisationId: string, question: string) {
-  const organisation = await prisma.organisation.findFirst({ where: { id: organisationId } });
+  const organisation = isDemoMode()
+    ? demoOrganisation()
+    : await prisma.organisation.findFirst({ where: { id: organisationId } });
   const settings = readAssistantSettings(organisation?.settings);
   if (!settings.privacyReviewComplete) {
     throw new ForbiddenError('Mark the assistant privacy review complete before sending org facts to a model.');
@@ -156,6 +170,9 @@ export async function askOrganisation(organisationId: string, question: string) 
 }
 
 export async function setPrivacyReview(organisationId: string, complete: boolean) {
+  if (isDemoMode()) {
+    throw new ValidationAppError('This hosted demo is read-only until a database is connected.');
+  }
   const organisation = await prisma.organisation.findFirst({ where: { id: organisationId } });
   const current =
     organisation?.settings && typeof organisation.settings === 'object'

@@ -1,8 +1,13 @@
 import { apiHandler, json } from '@/server/http/handler';
 import { prisma } from '@/lib/db';
 import { connectorMode } from '@/connectors/registry';
+import { isDemoMode } from '@/demo/mode';
+import { demoConnectors } from '@/demo/northstar';
 
 export const GET = apiHandler('org:read', async (ctx) => {
+  if (isDemoMode()) {
+    return json({ connectors: demoConnectors() });
+  }
   const connectors = await prisma.connector.findMany({
     where: { organisationId: ctx.organisationId },
     orderBy: { createdAt: 'asc' },
