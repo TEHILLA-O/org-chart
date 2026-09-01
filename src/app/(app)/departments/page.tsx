@@ -34,7 +34,7 @@ export default function DepartmentsPage() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {(data?.departments ?? []).map((dept) => (
           <Link key={dept.id} href={`/departments/${dept.id}`} className="block">
-            <Card className="h-full transition-shadow hover:shadow-md">
+            <Card className="h-full">
               <div className="flex items-start justify-between gap-2">
                 <p className="text-xs text-[var(--muted-foreground)]">{dept.code}</p>
                 {dept.colour ? (

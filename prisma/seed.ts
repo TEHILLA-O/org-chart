@@ -60,6 +60,12 @@ function hashOf(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
+function portraitFor(seed: string): string {
+  const n = parseInt(hashOf(seed).slice(0, 8), 16);
+  const gender = n % 2 === 0 ? 'women' : 'men';
+  return `https://randomuser.me/api/portraits/${gender}/${n % 99}.jpg`;
+}
+
 function holidayFor(seed: string, allowanceDays = 25) {
   let used = 0;
   for (let i = 0; i < seed.length; i += 1) {
@@ -249,6 +255,7 @@ async function main() {
           status: 'ACTIVE',
           startDate,
           employeeId: named.employeeId,
+          profilePhotoUrl: portraitFor(named.employeeId),
           holidayAllowanceDays: leave.allowanceDays,
           holidayRemainingDays: leave.remainingDays,
           costCentre: costCentreByDept.get(departmentId) ?? 'CC-000',

@@ -9,9 +9,11 @@ import {
   MiniMap,
   ReactFlow,
   ReactFlowProvider,
+  applyNodeChanges,
   useReactFlow,
   type Edge,
   type Node,
+  type NodeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -28,6 +30,8 @@ import { ShareDialog } from '@/components/chart/share-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectItem } from '@/components/ui/select';
 import type { ChartFilter } from '@/domain/org/types';
 import type { ChartEdgeModel, ChartNodeModel } from '@/domain/chart/project';
 import { reportingLineageIds } from '@/domain/chart/spotlight';
@@ -82,6 +86,10 @@ function ChartInner({ role }: { role: string }) {
   const [pendingMove, setPendingMove] = useState<{ from: string; to: string } | null>(null);
   const [vacancyFor, setVacancyFor] = useState<string | null>(null);
   const [vacancyTitle, setVacancyTitle] = useState('New role');
+  const [addOpen, setAddOpen] = useState(false);
+  const [addName, setAddName] = useState('');
+  const [addTitle, setAddTitle] = useState('');
+  const [addManager, setAddManager] = useState('');
   const canEdit = role === 'OWNER' || role === 'ADMIN' || role === 'EDITOR';
   const canShare = role === 'OWNER' || role === 'ADMIN';
   const fitOnce = useRef(false);
@@ -174,7 +182,7 @@ function ChartInner({ role }: { role: string }) {
         });
       } else if (!fitOnce.current) {
         fitOnce.current = true;
-        requestAnimationFrame(() => flow.fitView({ padding: 0.12, duration: 300 }));
+        requestAnimationFrame(() => flow.fitView({ padding: 0.12, duration: 420 }));
       }
     });
     return () => {
@@ -235,6 +243,36 @@ function ChartInner({ role }: { role: string }) {
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const addSeat = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/v1/charts/seats', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          displayName: addName.trim(),
+          title: addTitle.trim(),
+          managerPositionId: addManager || null,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message ?? 'Could not add person');
+      return payload as { positionId: string | null };
+    },
+    onSuccess: (payload) => {
+      toast.success('Saved to the organisation');
+      setAddOpen(false);
+      setAddName('');
+      setAddTitle('');
+      if (payload.positionId) {
+        setSelectedId(payload.positionId);
+        setFocus(payload.positionId);
+      }
+      queryClient.invalidateQueries({ queryKey: ['chart-graph'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
   const onNodeClick = useCallback((_: unknown, node: Node) => {
     setSelectedId(node.id);
   }, []);
@@ -252,10 +290,21 @@ function ChartInner({ role }: { role: string }) {
       const target = intersecting[0];
       if (target) {
         setPendingMove({ from: node.id, to: target.id });
+        return;
+      }
+      if (data) {
+        layoutChart(data.nodes, data.edges, layout).then((laid) => {
+          setNodes(laid.nodes);
+          setEdges(laid.edges);
+        });
       }
     },
-    [canEdit, flow],
+    [canEdit, data, flow, layout],
   );
+
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    setNodes((current) => applyNodeChanges(changes, current));
+  }, []);
 
   const onKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
@@ -298,7 +347,7 @@ function ChartInner({ role }: { role: string }) {
 
   return (
     <div className="flex h-full flex-col bg-transparent print-chart" onKeyDown={onKeyDown}>
-      <div className="flex items-end justify-between px-4 pt-4 pb-1">
+      <div className="page-enter flex items-end justify-between px-4 pt-4 pb-1">
         <div>
           <p className="text-[11px] font-semibold tracking-[0.18em] text-[var(--muted-foreground)] uppercase">
             {data?.chart?.name ?? 'Organisation chart'}
@@ -313,6 +362,15 @@ function ChartInner({ role }: { role: string }) {
               ? ` · ${presence.viewers.map((viewer) => viewer.name).join(', ')} also viewing`
               : ''}
           </p>
+          {canEdit ? (
+            <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+              {mode === 'LIVE'
+                ? 'Live edit is on. Drag a card onto a manager to change reporting. Click a card to rename, add people, or remove a seat. Changes save to the database.'
+                : 'Planning mode records a scenario overlay only. Switch to Live mode to edit the organisation database.'}
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-[var(--muted-foreground)]">You can view this chart. Editors can change seats on the canvas.</p>
+          )}
         </div>
       </div>
       <ChartToolbar
@@ -334,14 +392,14 @@ function ChartInner({ role }: { role: string }) {
           persistScenario(next, next === 'PLANNING' ? scenarioId : null);
         }}
         canEdit={canEdit}
-        onFit={() => flow.fitView({ padding: 0.12, duration: 250 })}
+        onFit={() => flow.fitView({ padding: 0.12, duration: 420 })}
         surface={surface}
         onSurface={persistView}
         spotlight={spotlight}
         onSpotlight={setSpotlight}
         onPrint={() => {
           if (surface === 'hierarchy') {
-            flow.fitView({ padding: 0.08, duration: 200 });
+            flow.fitView({ padding: 0.08, duration: 320 });
             window.setTimeout(() => window.print(), 350);
           } else {
             window.print();
@@ -360,11 +418,15 @@ function ChartInner({ role }: { role: string }) {
           persistScenario('PLANNING', id);
         }}
         canShare={canShare}
+        onAddPerson={() => {
+          setAddManager(selectedId ?? '');
+          setAddOpen(true);
+        }}
       />
       <div className="canvas-grid relative min-h-0 flex-1">
         {isLoading ? (
           <div className="absolute inset-0 z-10 flex items-center justify-center text-sm text-[var(--muted-foreground)]">
-            Laying out organisation…
+            <span className="motion-pulse">Laying out organisation…</span>
           </div>
         ) : null}
         {surface === 'hierarchy' && canvasReady ? (
@@ -373,9 +435,12 @@ function ChartInner({ role }: { role: string }) {
               nodes={displayedNodes}
               edges={edges}
               nodeTypes={nodeTypes}
+              onNodesChange={onNodesChange}
               onNodeClick={onNodeClick}
               onNodeDoubleClick={onNodeDoubleClick}
               onNodeDragStop={onNodeDragStop}
+              nodesDraggable={canEdit}
+              nodesConnectable={false}
               minZoom={0.15}
               maxZoom={1.6}
               onlyRenderVisibleElements
@@ -386,6 +451,19 @@ function ChartInner({ role }: { role: string }) {
               <MiniMap pannable zoomable maskColor="rgba(18, 0, 36, 0.72)" />
               <Controls showInteractive={false} />
             </ReactFlow>
+            {data && data.totals.positions === 0 && canEdit && mode === 'LIVE' ? (
+              <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+                <div className="pointer-events-auto rounded-3xl border border-white/15 bg-[#1c0840]/90 p-6 text-center shadow-[0_18px_50px_rgba(6,0,22,0.45)] backdrop-blur-xl">
+                  <p className="text-lg font-semibold">Start this organisation chart</p>
+                  <p className="mt-1 max-w-sm text-sm text-[var(--muted-foreground)]">
+                    Add a first person at the top of the tree. You can drag cards onto managers afterwards — each change writes to Postgres.
+                  </p>
+                  <Button className="mt-4" onClick={() => setAddOpen(true)}>
+                    Add first person
+                  </Button>
+                </div>
+              </div>
+            ) : null}
             <ChartLegend />
           </>
         ) : null}
@@ -424,15 +502,28 @@ function ChartInner({ role }: { role: string }) {
           setSelectedId(id);
         }}
         canEdit={canEdit}
+        liveEdit={canEdit && mode === 'LIVE'}
         onCreateVacancy={setVacancyFor}
       />
 
-      <Dialog open={Boolean(pendingMove)} onOpenChange={(open) => !open && setPendingMove(null)}>
+      <Dialog
+        open={Boolean(pendingMove)}
+        onOpenChange={(open) => {
+          if (open) return;
+          setPendingMove(null);
+          if (data) {
+            layoutChart(data.nodes, data.edges, layout).then((laid) => {
+              setNodes(laid.nodes);
+              setEdges(laid.edges);
+            });
+          }
+        }}
+      >
         <DialogContent>
           <DialogTitle>Move position?</DialogTitle>
           <DialogDescription>
             {mode === 'LIVE'
-              ? 'This updates the live reporting line, writes an audit event, and does not push to Microsoft.'
+              ? 'This updates the live reporting line in the database.'
               : 'This records a scenario change only. Live organisation data is not modified.'}
           </DialogDescription>
           <div className="mt-4 flex justify-end gap-2">
@@ -475,6 +566,52 @@ function ChartInner({ role }: { role: string }) {
               }}
             >
               Create
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={addOpen}
+        onOpenChange={(open) => {
+          setAddOpen(open);
+          if (open) setAddManager(selectedId ?? addManager);
+        }}
+      >
+        <DialogContent>
+          <DialogTitle>Add a person</DialogTitle>
+          <DialogDescription>
+            Creates a person and a seat in the organisation database. Leave reports-to empty to place them at the top of the chart.
+          </DialogDescription>
+          <div className="mt-4 space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="add-name">Name</Label>
+              <Input id="add-name" value={addName} onChange={(event) => setAddName(event.target.value)} placeholder="Ada Lovelace" />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="add-title">Job title</Label>
+              <Input id="add-title" value={addTitle} onChange={(event) => setAddTitle(event.target.value)} placeholder="Chief Executive Officer" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Reports to</Label>
+              <Select value={addManager} onValueChange={setAddManager} className="w-full min-w-0">
+                <SelectItem value="">Top of the chart</SelectItem>
+                {(data?.nodes ?? []).map((node) => (
+                  <SelectItem key={node.id} value={node.id}>
+                    {(node.occupants[0]?.displayName ?? 'Open role') + ' · ' + node.title}
+                  </SelectItem>
+                ))}
+              </Select>
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setAddOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={addSeat.isPending || addName.trim().length < 1 || addTitle.trim().length < 2}
+              onClick={() => addSeat.mutate()}
+            >
+              Save to database
             </Button>
           </div>
         </DialogContent>

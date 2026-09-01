@@ -70,15 +70,15 @@ export function DashboardView() {
         <p className="text-sm text-[var(--muted-foreground)]">Northstar Holdings</p>
         <h1 className="text-3xl font-semibold tracking-tight">Organisation pulse</h1>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="stagger-in grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {tiles.map((tile) => (
           <Card key={tile.label}>
             <p className="text-xs tracking-wide text-[var(--muted-foreground)] uppercase">{tile.label}</p>
-            <p className="mt-2 text-3xl font-semibold">{tile.value}</p>
+            <p className={`mt-2 text-3xl font-semibold ${data == null ? 'motion-pulse' : ''}`}>{tile.value}</p>
           </Card>
         ))}
       </div>
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="stagger-in grid gap-3 lg:grid-cols-2">
         <Card>
           <p className="text-xs tracking-wide text-[var(--muted-foreground)] uppercase">Integration health</p>
           <p className="mt-2 font-medium">{data?.connector?.name ?? 'No connector'}</p>
@@ -91,7 +91,7 @@ export function DashboardView() {
               ? new Date(data.lastSuccessfulSync.finishedAt).toLocaleString()
               : 'Never'}
           </p>
-          <Link className="mt-3 inline-block text-sm underline" href="/integrations">
+          <Link className="mt-3 inline-block text-sm underline decoration-transparent underline-offset-4 transition-[color,text-decoration-color] duration-200 hover:text-[#67e8f9] hover:decoration-[#67e8f9]" href="/integrations">
             Open integrations
           </Link>
         </Card>

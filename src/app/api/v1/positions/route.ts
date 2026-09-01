@@ -26,7 +26,7 @@ export const GET = apiHandler('positions:read', async (ctx) => {
 
 const Body = z.object({
   title: z.string().min(2).max(120),
-  managerPositionId: z.string().uuid(),
+  managerPositionId: z.string().uuid().nullable().optional(),
   departmentId: z.string().uuid().nullable().optional(),
   locationId: z.string().uuid().nullable().optional(),
   mode: z.enum(['LIVE', 'PLANNING']).default('LIVE'),
