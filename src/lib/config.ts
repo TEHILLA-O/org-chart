@@ -26,6 +26,10 @@ const EnvSchema = z.object({
   SYNC_SCHEDULER_ENABLED: boolish,
   IMPORT_MAX_BYTES: z.coerce.number().int().positive().default(5_242_880),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+  DEEPSEEK_API_KEY: z.string().optional(),
+  DEEPSEEK_API_BASE_URL: z.string().default('https://api.deepseek.com'),
+  SUPABASE_URL: z.string().optional(),
+  SUPABASE_SERVICE_KEY: z.string().optional(),
 });
 
 export type AppConfig = z.infer<typeof EnvSchema> & {

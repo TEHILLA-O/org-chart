@@ -1,15 +1,31 @@
 import { prisma } from '@/lib/db';
 import { applyCollapseState, ancestorsToExpand } from '@/domain/chart/collapse';
 import { applyFilters } from '@/domain/chart/filters';
-import { projectToChartModel } from '@/domain/chart/project';
+import { projectToChartModel, type ChartNodeModel } from '@/domain/chart/project';
 import { buildReportingGraph, reportingChain, requirePosition } from '@/domain/org/graph';
 import { computeOrgHealth } from '@/domain/org/health';
 import { tenureLabel } from '@/domain/hr/leave';
-import { redactRecord } from '@/domain/privacy/visibility';
+import { isFieldVisible, redactRecord } from '@/domain/privacy/visibility';
 import type { Actor } from '@/domain/permissions/policy';
 import type { ChartFilter } from '@/domain/org/types';
 import { loadDefaultChart, loadOrgGroups, loadOrganisationGraph } from '@/repositories/org-repository';
 import { NotFoundError } from '@/lib/errors';
+import { loadLiveOrOverlayGraph } from '@/server/services/scenario-service';
+
+function redactShareNodes(nodes: ChartNodeModel[], allowedFields: readonly string[]): ChartNodeModel[] {
+  const ctx = { actor: null, isShareLink: true, allowedFields };
+  return nodes.map((node) => ({
+    ...node,
+    occupants: node.occupants.map((occupant) => ({
+      ...occupant,
+      email: isFieldVisible('email', ctx) ? occupant.email : null,
+      status: isFieldVisible('status', ctx) ? occupant.status : 'ACTIVE',
+      holidayRemainingDays: isFieldVisible('holidayRemainingDays', ctx)
+        ? occupant.holidayRemainingDays
+        : null,
+    })),
+  }));
+}
 
 export async function getChartPayload(options: {
   organisationId: string;
@@ -17,9 +33,11 @@ export async function getChartPayload(options: {
   filters?: ChartFilter;
   focusPositionId?: string;
   showSecondaryLines?: boolean;
+  scenarioId?: string | null;
+  share?: { isShareLink: true; allowedFields: readonly string[] };
 }) {
-  const [graphInput, chart, groups] = await Promise.all([
-    loadOrganisationGraph(options.organisationId),
+  const [{ graphInput, plannedPositionIds, movedPositionIds, scenario }, chart, groups] = await Promise.all([
+    loadLiveOrOverlayGraph(options.organisationId, options.scenarioId),
     loadDefaultChart(options.organisationId),
     loadOrgGroups(options.organisationId),
   ]);
@@ -47,10 +65,16 @@ export async function getChartPayload(options: {
       locations: new Map(graphInput.locations.map((location) => [location.id, { name: location.name }])),
       groups: new Map(groups.map((group) => [group.id, { name: group.name }])),
     },
+    { plannedPositionIds, movedPositionIds },
   );
 
+  const nodes = options.share
+    ? redactShareNodes(projected.nodes, options.share.allowedFields)
+    : projected.nodes;
+
   return {
-    chart,
+    chart: options.share ? (chart ? { name: chart.name } : null) : chart,
+    scenario,
     groups: groups.map((group) => ({
       id: group.id,
       name: group.name,
@@ -70,7 +94,7 @@ export async function getChartPayload(options: {
       roots: graph.roots,
       descendantCounts: Object.fromEntries(graph.descendantCounts),
     },
-    nodes: projected.nodes,
+    nodes,
     edges: projected.edges,
     collapsedPositionIds: [...collapsed],
     totals: {
@@ -81,9 +105,14 @@ export async function getChartPayload(options: {
   };
 }
 
-export async function getPositionDetails(organisationId: string, positionId: string, actor: Actor | null = null) {
-  const [graphInput, groups] = await Promise.all([
-    loadOrganisationGraph(organisationId),
+export async function getPositionDetails(
+  organisationId: string,
+  positionId: string,
+  actor: Actor | null = null,
+  scenarioId?: string | null,
+) {
+  const [{ graphInput }, groups] = await Promise.all([
+    loadLiveOrOverlayGraph(organisationId, scenarioId),
     loadOrgGroups(organisationId),
   ]);
   const graph = buildReportingGraph(graphInput);
@@ -122,6 +151,14 @@ export async function getPositionDetails(organisationId: string, positionId: str
       })
     : null;
 
+  const skills = occupant
+    ? await prisma.personSkill.findMany({
+        where: { organisationId, personId: occupant.person.id },
+        include: { skill: true },
+        orderBy: { skill: { name: 'asc' } },
+      })
+    : [];
+
   const groupById = new Map(groups.map((group) => [group.id, group]));
 
   const hrRaw = personRecord
@@ -156,6 +193,12 @@ export async function getPositionDetails(organisationId: string, positionId: str
           profilePhotoUrl: personRecord.profilePhotoUrl,
         }
       : null,
+    skills: skills.map((row) => ({
+      id: row.skillId,
+      name: row.skill.name,
+      source: row.source,
+      locked: row.locked,
+    })),
     groups: (occupant?.person.groupIds ?? [])
       .map((id) => groupById.get(id))
       .filter((group): group is NonNullable<typeof group> => Boolean(group))

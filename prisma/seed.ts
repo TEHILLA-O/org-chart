@@ -78,6 +78,11 @@ function nextReviewFrom(startDate: Date, now = new Date()) {
 }
 
 async function wipeOrganisation(organisationId: string) {
+  await prisma.chartPresence.deleteMany({ where: { organisationId } });
+  await prisma.keyResult.deleteMany({ where: { objective: { organisationId } } });
+  await prisma.objective.deleteMany({ where: { organisationId } });
+  await prisma.personSkill.deleteMany({ where: { organisationId } });
+  await prisma.skill.deleteMany({ where: { organisationId } });
   await prisma.personGroupMembership.deleteMany({ where: { organisationId } });
   await prisma.orgGroup.deleteMany({ where: { organisationId } });
   await prisma.auditEvent.deleteMany({ where: { organisationId } });
@@ -635,6 +640,72 @@ async function main() {
       lastSyncAt: new Date(),
       lastSuccessfulSyncAt: new Date(),
       config: { mode: 'mock' },
+    },
+  });
+
+  await prisma.connector.create({
+    data: {
+      organisationId: organisation.id,
+      provider: 'SUPABASE',
+      name: 'Supabase directory (mock)',
+      status: 'CONNECTED',
+      isReadOnly: true,
+      lastSyncAt: new Date(),
+      lastSuccessfulSyncAt: new Date(),
+      config: { mode: 'mock', table: 'people' },
+    },
+  });
+
+  async function tagPerson(key: string, names: Array<{ name: string; source: 'TITLE' | 'MANUAL' | 'BIO' }>) {
+    const person = peopleByKey.get(key);
+    if (!person) return;
+    for (const item of names) {
+      const slug = item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      const skill = await prisma.skill.upsert({
+        where: { organisationId_slug: { organisationId: organisation.id, slug } },
+        update: { name: item.name },
+        create: { organisationId: organisation.id, name: item.name, slug },
+      });
+      await prisma.personSkill.upsert({
+        where: { personId_skillId: { personId: person.id, skillId: skill.id } },
+        update: { source: item.source, locked: item.source === 'MANUAL' },
+        create: {
+          organisationId: organisation.id,
+          personId: person.id,
+          skillId: skill.id,
+          source: item.source,
+          evidence: `Seeded from ${item.source.toLowerCase()}`,
+          locked: item.source === 'MANUAL',
+        },
+      });
+    }
+  }
+
+  await tagPerson('ceo', [{ name: 'Leadership', source: 'TITLE' }]);
+  await tagPerson('cfo', [{ name: 'Finance', source: 'TITLE' }]);
+  await tagPerson('cpo', [{ name: 'People operations', source: 'TITLE' }]);
+  await tagPerson('cto', [
+    { name: 'Engineering leadership', source: 'TITLE' },
+    { name: 'TypeScript', source: 'MANUAL' },
+  ]);
+  await tagPerson('coo', [{ name: 'Operations', source: 'TITLE' }]);
+
+  const ceo = peopleByKey.get('ceo');
+  await prisma.objective.create({
+    data: {
+      organisationId: organisation.id,
+      title: 'Make the live directory the default way to find people',
+      description: 'Skills, connectors, and the org chart stay in one workspace.',
+      cycleLabel: 'H2 2026',
+      status: 'ACTIVE',
+      ownerPersonId: ceo?.id ?? null,
+      createdById: owner.id,
+      keyResults: {
+        create: [
+          { title: 'Directory sources connected', unit: 'count', startValue: 0, currentValue: 3, targetValue: 4 },
+          { title: 'Leadership seats with at least one skill tag', unit: '%', startValue: 0, currentValue: 80, targetValue: 100 },
+        ],
+      },
     },
   });
 

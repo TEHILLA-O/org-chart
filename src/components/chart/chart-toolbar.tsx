@@ -48,6 +48,10 @@ export function ChartToolbar({
   onShare,
   rosterQuery,
   onRosterQuery,
+  scenarios,
+  scenarioId,
+  onScenario,
+  canShare,
 }: {
   departments: Array<{ id: string; name: string }>;
   locations: Array<{ id: string; name: string }>;
@@ -70,6 +74,10 @@ export function ChartToolbar({
   onShare: () => void;
   rosterQuery: string;
   onRosterQuery: (value: string) => void;
+  scenarios: Array<{ id: string; name: string; changeCount: number }>;
+  scenarioId: string | null;
+  onScenario: (id: string | null) => void;
+  canShare: boolean;
 }) {
   const [q, setQ] = useState('');
   const { data } = useQuery({
@@ -85,18 +93,18 @@ export function ChartToolbar({
   const count = activeFilterCount(filters);
 
   return (
-    <div className="no-print border-b border-[var(--border)] bg-[var(--card)]">
-      <div className="flex flex-wrap items-center gap-2 px-3 py-2">
-        <div className="flex rounded-md border border-[var(--border)] p-0.5">
+    <div className="no-print border-b border-transparent bg-transparent">
+      <div className="flex flex-wrap items-center gap-2 px-4 py-3">
+        <div className="flex rounded-full bg-[var(--muted)] p-1">
           {SURFACES.map((item) => (
             <button
               key={item.id}
               type="button"
               className={cn(
-                'rounded px-2.5 py-1 text-xs font-medium',
+                'rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors',
                 surface === item.id
-                  ? 'bg-[#2f5d62] text-[#f7f4ec]'
-                  : 'text-[var(--muted-foreground)] hover:bg-[var(--muted)]',
+                  ? 'bg-white text-[#1b1822] shadow-sm'
+                  : 'text-[var(--muted-foreground)] hover:text-[#1b1822]',
               )}
               onClick={() => onSurface(item.id)}
             >
@@ -106,12 +114,12 @@ export function ChartToolbar({
         </div>
 
         <div className="relative min-w-[16rem] flex-1">
-          <Search className="absolute top-2.5 left-2 h-4 w-4 text-[var(--muted-foreground)]" />
+          <Search className="absolute top-3 left-3.5 h-4 w-4 text-[var(--muted-foreground)]" />
           <Input
-            className="pl-8"
+            className="pl-10"
             placeholder={
               surface === 'hierarchy'
-                ? 'Search people, positions, departments…'
+                ? 'Find people, groups or enter a query'
                 : 'Filter this view…'
             }
             value={surface === 'hierarchy' ? q : rosterQuery}
@@ -121,11 +129,11 @@ export function ChartToolbar({
             }}
           />
           {surface === 'hierarchy' && data?.results?.length ? (
-            <ul className="absolute z-20 mt-1 max-h-72 w-full overflow-auto rounded-md border border-[var(--border)] bg-white shadow-lg">
+            <ul className="absolute z-20 mt-2 max-h-72 w-full overflow-auto rounded-2xl border border-[var(--border)] bg-white p-1 shadow-[0_16px_40px_rgba(23,20,31,0.12)]">
               {data.results.map((hit) => (
                 <li key={`${hit.kind}-${hit.id}`}>
                   <button
-                    className="w-full px-3 py-2 text-left text-sm hover:bg-[var(--muted)]"
+                    className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-[var(--muted)]"
                     onClick={() => {
                       if (hit.positionId) onSearchSelect(hit.positionId);
                       setQ('');
@@ -153,15 +161,17 @@ export function ChartToolbar({
         <Button variant="outline" size="sm" onClick={() => onExport('xlsx')}>
           XLSX
         </Button>
-        <Button variant="outline" size="sm" onClick={onShare}>
-          <Share2 className="h-3.5 w-3.5" />
-          Copy link
-        </Button>
+        {canShare ? (
+          <Button variant="outline" size="sm" onClick={onShare}>
+            <Share2 className="h-3.5 w-3.5" />
+            Share
+          </Button>
+        ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 px-3 pb-2">
+      <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
         <select
-          className="h-9 rounded-md border border-[var(--border)] bg-white px-2 text-sm"
+          className="soft-select"
           value={filters.groupIds?.[0] ?? ''}
           onChange={(event) =>
             onFilters({
@@ -178,7 +188,7 @@ export function ChartToolbar({
           ))}
         </select>
         <select
-          className="h-9 rounded-md border border-[var(--border)] bg-white px-2 text-sm"
+          className="soft-select"
           value={filters.departmentIds?.[0] ?? ''}
           onChange={(event) =>
             onFilters({
@@ -195,7 +205,7 @@ export function ChartToolbar({
           ))}
         </select>
         <select
-          className="h-9 rounded-md border border-[var(--border)] bg-white px-2 text-sm"
+          className="soft-select"
           value={filters.locationIds?.[0] ?? ''}
           onChange={(event) =>
             onFilters({
@@ -212,7 +222,7 @@ export function ChartToolbar({
           ))}
         </select>
         <select
-          className="h-9 rounded-md border border-[var(--border)] bg-white px-2 text-sm"
+          className="soft-select"
           value={filters.positionStatuses?.[0] ?? ''}
           onChange={(event) =>
             onFilters({
@@ -267,13 +277,30 @@ export function ChartToolbar({
           </>
         ) : null}
         {canEdit ? (
-          <Button
-            variant={mode === 'LIVE' ? 'gold' : 'outline'}
-            size="sm"
-            onClick={() => onMode(mode === 'LIVE' ? 'PLANNING' : 'LIVE')}
-          >
-            {mode === 'LIVE' ? 'Live mode' : 'Planning mode'}
-          </Button>
+          <>
+            <Button
+              variant={mode === 'LIVE' ? 'gold' : 'outline'}
+              size="sm"
+              onClick={() => onMode(mode === 'LIVE' ? 'PLANNING' : 'LIVE')}
+            >
+              {mode === 'LIVE' ? 'Live mode' : 'Planning mode'}
+            </Button>
+            {mode === 'PLANNING' ? (
+              <select
+                className="soft-select"
+                value={scenarioId ?? ''}
+                onChange={(event) => onScenario(event.target.value || null)}
+              >
+                <option value="">Choose scenario</option>
+                {scenarios.map((scenario) => (
+                  <option key={scenario.id} value={scenario.id}>
+                    {scenario.name}
+                    {scenario.changeCount ? ` (${scenario.changeCount})` : ''}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+          </>
         ) : null}
       </div>
     </div>

@@ -142,6 +142,7 @@ function toPersonSnapshot(
     phone: string | null;
     profilePhotoUrl: string | null;
     status: PersonSnapshot['status'];
+    holidayRemainingDays: number | null;
   },
   groupIds: string[] = [],
 ): PersonSnapshot {
@@ -155,6 +156,7 @@ function toPersonSnapshot(
     phone: person.phone,
     profilePhotoUrl: person.profilePhotoUrl,
     status: person.status,
+    holidayRemainingDays: person.holidayRemainingDays,
     groupIds,
   };
 }

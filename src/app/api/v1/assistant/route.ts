@@ -8,7 +8,6 @@ export const GET = apiHandler('people:read', async (ctx) => {
   });
   return json({
     settings: readAssistantSettings(organisation?.settings),
-    modelConnected: false,
   });
 });
 

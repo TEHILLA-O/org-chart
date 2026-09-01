@@ -34,6 +34,9 @@ export const GET = apiHandler('people:read', async (ctx) => {
       groupMemberships: {
         include: { group: true },
       },
+      skills: {
+        include: { skill: true },
+      },
     },
   });
 

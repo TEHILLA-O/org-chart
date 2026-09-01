@@ -1,7 +1,6 @@
 'use client';
 
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { Badge } from '@/components/ui/badge';
 import { initials } from '@/lib/utils';
 import type { ChartNodeModel } from '@/domain/chart/project';
 import { cn } from '@/lib/utils';
@@ -11,73 +10,104 @@ type PositionNodeData = ChartNodeModel & { layoutDirection?: 'TOP_DOWN' | 'LEFT_
 export function PositionNode({ data, selected }: NodeProps) {
   const model = data as unknown as PositionNodeData;
   const occupant = model.occupants[0];
-  const name = occupant?.displayName ?? 'Vacant';
+  const name = occupant?.displayName ?? 'Open role';
   const horizontal = model.layoutDirection === 'LEFT_RIGHT';
   const strip = model.departmentColour ?? '#2f5d62';
+  const onLeave = occupant?.status === 'ON_LEAVE';
+  const leaveDays = occupant?.holidayRemainingDays;
+  const showLeave = onLeave || (typeof leaveDays === 'number' && leaveDays <= 8);
 
   return (
     <div
       className={cn(
-        'relative h-[132px] w-[268px] overflow-hidden rounded-lg border bg-white shadow-sm',
-        selected ? 'border-[#c9a227] ring-2 ring-[#c9a227]/40' : 'border-[var(--border)]',
-        model.isVacant && 'border-dashed bg-[#fbf6f1]',
+        'relative flex h-[156px] w-[220px] flex-col overflow-hidden rounded-2xl border bg-white shadow-[0_10px_28px_rgba(23,20,31,0.07)] transition-shadow',
+        selected
+          ? 'border-[#2f5d62] ring-4 ring-[#2f5d62]/12'
+          : 'border-transparent hover:shadow-[0_14px_32px_rgba(23,20,31,0.1)]',
+        model.isVacant && 'border-dashed border-[#c8b8a8] bg-[#fbf8f3]',
+        model.planned && 'ring-2 ring-[#c9a227]/50',
+        model.moved && !model.planned && 'ring-2 ring-[#2f5d62]/35',
       )}
     >
-      <div className="absolute inset-y-0 left-0 w-1.5" style={{ background: strip }} />
       <Handle
         type="target"
         position={horizontal ? Position.Left : Position.Top}
-        className="!bg-[#2f5d62]"
+        className="!h-2.5 !w-2.5 !border-2 !border-white !bg-[#c9c3b8]"
       />
-      <div className="flex h-full flex-col px-3 py-2.5 pl-4">
-        <div className="flex gap-3">
+      <div className="flex flex-1 flex-col px-3.5 pt-3.5 pb-2">
+        <div className="flex items-start gap-2.5">
           {occupant?.profilePhotoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={occupant.profilePhotoUrl}
               alt=""
-              className="h-11 w-11 shrink-0 rounded-full object-cover"
+              className="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-white"
             />
           ) : (
             <div
               className={cn(
                 'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-                model.isVacant ? 'bg-[#f4d7c8] text-[#7a3419]' : 'bg-[#2f5d62] text-[#f7f4ec]',
+                model.isVacant ? 'bg-[#efe3d6] text-[#8a4b2f]' : 'bg-[#2f5d62] text-[#f7f4ec]',
               )}
             >
-              {model.isVacant ? 'V' : initials(name)}
+              {model.isVacant ? '+' : initials(name)}
             </div>
           )}
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold leading-tight">{name}</p>
-            <p className="truncate text-xs text-[var(--muted-foreground)]">{model.title}</p>
-            <p className="truncate text-[11px] text-[var(--muted-foreground)]">
-              {[model.departmentName, model.locationName].filter(Boolean).join(' · ') || 'Unassigned'}
+          <div className="min-w-0 flex-1 pt-0.5">
+            <p className="truncate text-[13px] font-semibold leading-tight tracking-tight">{name}</p>
+            <p className="mt-0.5 line-clamp-2 text-[11px] leading-snug text-[var(--muted-foreground)]">
+              {model.title}
             </p>
           </div>
         </div>
-        <div className="mt-2 flex flex-wrap gap-1">
-          {model.isVacant ? <Badge tone="vacant">Vacant</Badge> : null}
-          {model.isAssistant ? <Badge tone="gold">Assistant</Badge> : null}
-          {model.occupants.length > 1 ? <Badge tone="sea">Shared</Badge> : null}
-          {model.hasSecondary ? <Badge>Dotted line</Badge> : null}
-          {model.overloaded ? <Badge tone="vacant">Wide span</Badge> : null}
-          {model.collapsed ? <Badge>Collapsed · {model.directReportCount}</Badge> : null}
+        <div className="mt-2.5 flex flex-wrap gap-1">
+          {model.planned ? (
+            <span className="rounded-full bg-[#f6eee4] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-[#8a4b2f] uppercase">
+              Plan
+            </span>
+          ) : null}
+          {model.moved ? (
+            <span className="rounded-full bg-[#e8f3f1] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-[#2f5d62] uppercase">
+              Moved
+            </span>
+          ) : null}
+          {showLeave ? (
+            <span className="rounded-full bg-[#e8f3f1] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-[#2f5d62] uppercase">
+              {onLeave ? 'On leave' : `${leaveDays}d leave`}
+            </span>
+          ) : null}
+          {model.occupants.length > 1 ? (
+            <span className="rounded-full bg-[#efeae1] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-[#5c5666] uppercase">
+              Shared
+            </span>
+          ) : null}
+          {model.hasSecondary ? (
+            <span className="rounded-full bg-[#f6eee4] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-[#8a4b2f] uppercase">
+              Dotted
+            </span>
+          ) : null}
+          {model.collapsed ? (
+            <span className="rounded-full bg-[#efeae1] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-[#5c5666] uppercase">
+              +{model.directReportCount}
+            </span>
+          ) : null}
         </div>
+      </div>
+      <div
+        className="flex h-8 items-center justify-between px-3 text-[11px] font-medium text-white"
+        style={{ background: model.isVacant ? '#b9a898' : strip }}
+      >
+        <span className="truncate">{model.isVacant ? 'Open role' : (model.departmentName ?? 'Unassigned')}</span>
         {model.directReportCount > 0 ? (
-          <p className="mt-auto text-[10px] tracking-wide text-[var(--muted-foreground)] uppercase">
-            {model.directReportCount} direct · {model.downstreamCount} downstream
-          </p>
-        ) : (
-          <p className="mt-auto text-[10px] tracking-wide text-[var(--muted-foreground)] uppercase">
-            Individual contributor
-          </p>
-        )}
+          <span className="ml-2 shrink-0 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">
+            {model.directReportCount}
+          </span>
+        ) : null}
       </div>
       <Handle
         type="source"
         position={horizontal ? Position.Right : Position.Bottom}
-        className="!bg-[#2f5d62]"
+        className="!h-2.5 !w-2.5 !border-2 !border-white !bg-[#c9c3b8]"
       />
     </div>
   );

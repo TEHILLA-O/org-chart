@@ -65,7 +65,7 @@ export async function createPersonFromFields(input: {
   const requestedGroups = new Set(body.groupIds ?? []);
   if (employeeGroup) requestedGroups.add(employeeGroup.id);
 
-  return prisma.$transaction(async (tx) => {
+  const created = await prisma.$transaction(async (tx) => {
     const person = await tx.person.create({
       data: {
         organisationId: input.organisationId,
@@ -159,6 +159,25 @@ export async function createPersonFromFields(input: {
 
     return { person, positionId };
   });
+
+  try {
+    const { applySuggestions, suggestForPerson } = await import('@/server/services/skill-service');
+    const { fetchGithubLanguages } = await import('@/server/services/profile-link-service');
+    const githubLanguages =
+      body.profileLinkProvider === 'GITHUB' && body.profileLinkUsername
+        ? await fetchGithubLanguages(body.profileLinkUsername)
+        : [];
+    const suggestions = await suggestForPerson(input.organisationId, created.person.id, { githubLanguages });
+    await applySuggestions({
+      organisationId: input.organisationId,
+      personId: created.person.id,
+      suggestions,
+    });
+  } catch {
+    // Skill allocation is best-effort and must not block creating the person.
+  }
+
+  return created;
 }
 
 function emptyToNull(value?: string | null) {

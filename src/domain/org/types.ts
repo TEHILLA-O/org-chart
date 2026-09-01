@@ -46,6 +46,7 @@ export interface PersonSnapshot {
   phone: string | null;
   profilePhotoUrl: string | null;
   status: PersonLifecycle;
+  holidayRemainingDays?: number | null;
   groupIds?: string[];
 }
 

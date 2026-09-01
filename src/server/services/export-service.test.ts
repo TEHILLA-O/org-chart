@@ -46,6 +46,8 @@ describe('directory export', () => {
             profilePhotoUrl: null,
             email: 'fin@northstar.example',
             isPrimary: true,
+            status: 'ACTIVE',
+            holidayRemainingDays: 12,
           },
         ],
       }),

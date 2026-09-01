@@ -6,6 +6,7 @@ import { Mail, Phone, GitBranch, Users, CalendarDays } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { PersonSkillsPanel } from '@/components/people/person-skills-panel';
 
 interface HrBlock {
   employeeId?: string | null;
@@ -36,7 +37,7 @@ interface Details {
     profilePhotoUrl: string | null;
   } | null;
   groups: Array<{ id: string; name: string; kind: string }>;
-  department: { name: string } | null;
+  department: { name: string; colour?: string | null } | null;
   location: { name: string } | null;
   manager: { positionId: string; title: string; personName: string } | null;
   secondaryManagers: Array<{ positionId: string; title: string; personName: string }>;
@@ -66,31 +67,34 @@ function formatLabel(value: string | null | undefined) {
 function HrRow({ label, children }: { label: string; children: ReactNode }) {
   if (children == null || children === '') return null;
   return (
-    <div>
-      <p className="text-xs tracking-wide text-[var(--muted-foreground)] uppercase">{label}</p>
-      <p className="font-medium">{children}</p>
+    <div className="flex items-start justify-between gap-4 py-2">
+      <p className="text-sm text-[var(--muted-foreground)]">{label}</p>
+      <p className="max-w-[60%] text-right text-sm font-medium">{children}</p>
     </div>
   );
 }
 
 export function DetailsDrawer({
   positionId,
+  scenarioId,
   onClose,
   onFocus,
   canEdit,
   onCreateVacancy,
 }: {
   positionId: string | null;
+  scenarioId?: string | null;
   onClose: () => void;
   onFocus: (id: string) => void;
   canEdit: boolean;
   onCreateVacancy: (managerPositionId: string) => void;
 }) {
   const { data } = useQuery({
-    queryKey: ['position', positionId],
+    queryKey: ['position', positionId, scenarioId],
     enabled: Boolean(positionId),
     queryFn: async () => {
-      const response = await fetch(`/api/v1/positions/${positionId}`);
+      const params = scenarioId ? `?scenarioId=${scenarioId}` : '';
+      const response = await fetch(`/api/v1/positions/${positionId}${params}`);
       if (!response.ok) throw new Error('Failed to load position');
       return (await response.json()) as Details;
     },
@@ -108,38 +112,60 @@ export function DetailsDrawer({
         {!data ? (
           <div className="p-6 text-sm text-[var(--muted-foreground)]">Loading…</div>
         ) : (
-          <div className="flex h-full flex-col overflow-y-auto p-6">
-            <p className="text-[10px] tracking-[0.2em] text-[var(--muted-foreground)] uppercase">Position</p>
-            <h2 className="mt-1 text-xl font-semibold">{occupant?.displayName ?? 'Vacant'}</h2>
-            <p className="text-sm text-[var(--muted-foreground)]">{data.position.title}</p>
-            <div className="mt-3 flex flex-wrap gap-1">
-              {data.isVacant ? <Badge tone="vacant">Vacant</Badge> : <Badge tone="sea">{occupant?.status}</Badge>}
-              {data.department ? <Badge>{data.department.name}</Badge> : null}
-              {data.location ? <Badge>{data.location.name}</Badge> : null}
-              {data.groups.map((group) => (
-                <Badge key={group.id} tone="gold">
-                  {group.name}
-                </Badge>
-              ))}
+          <div className="flex h-full flex-col overflow-y-auto p-6 pt-12">
+            <div className="flex items-start gap-4">
+              {data.profile?.profilePhotoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={data.profile.profilePhotoUrl}
+                  alt=""
+                  className="h-20 w-20 rounded-full object-cover ring-4 ring-[#efeae1]"
+                />
+              ) : (
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#2f5d62] text-lg font-semibold text-white">
+                  {data.isVacant ? '+' : (occupant?.displayName ?? '?').slice(0, 1)}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <h2 className="text-xl leading-tight font-semibold tracking-tight">
+                  {occupant?.displayName ?? 'Open role'}
+                </h2>
+                <p className="mt-1 text-sm text-[var(--muted-foreground)]">{data.position.title}</p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {data.isVacant ? <Badge tone="vacant">Open</Badge> : <Badge tone="sea">{occupant?.status}</Badge>}
+                  {data.department ? (
+                    <span
+                      className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold text-white uppercase"
+                      style={{ background: data.department.colour ?? '#2f5d62' }}
+                    >
+                      {data.department.name}
+                    </span>
+                  ) : null}
+                  {data.location ? <Badge>{data.location.name}</Badge> : null}
+                  {data.groups.map((group) => (
+                    <Badge key={group.id} tone="gold">
+                      {group.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            {data.profile?.profilePhotoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={data.profile.profilePhotoUrl}
-                alt=""
-                className="mt-4 h-16 w-16 rounded-full object-cover"
-              />
-            ) : null}
-            {data.profile?.bio ? <p className="mt-3 text-sm">{data.profile.bio}</p> : null}
+            {data.profile?.bio ? <p className="mt-4 text-sm leading-relaxed">{data.profile.bio}</p> : null}
             {data.profile?.profileLinkUrl ? (
-              <a className="mt-2 inline-block text-sm underline" href={data.profile.profileLinkUrl} target="_blank" rel="noreferrer">
+              <a className="mt-2 inline-block text-sm font-medium text-[#2f5d62] underline" href={data.profile.profileLinkUrl} target="_blank" rel="noreferrer">
                 Linked profile
                 {data.profile.profileLinkUsername ? ` · ${data.profile.profileLinkUsername}` : ''}
               </a>
             ) : null}
 
-            <dl className="mt-6 space-y-3 text-sm">
+            {occupant ? (
+              <div className="mt-4">
+                <PersonSkillsPanel personId={occupant.id} canEdit={canEdit} />
+              </div>
+            ) : null}
+
+            <dl className="mt-6 space-y-1 text-sm">
               {occupant?.email ? (
                 <div className="flex items-center gap-2">
                   <Mail className="h-4 w-4 text-[var(--muted-foreground)]" />
@@ -156,13 +182,13 @@ export function DetailsDrawer({
               ) : null}
 
               {hr && Object.keys(hr).length > 0 ? (
-                <div className="space-y-3 rounded-md border border-[var(--border)] bg-[var(--muted)]/40 p-3">
-                  <p className="flex items-center gap-1 text-xs tracking-wide text-[var(--muted-foreground)] uppercase">
+                <div className="space-y-1 rounded-2xl bg-[#f6f4ef] p-4">
+                  <p className="mb-2 flex items-center gap-1 text-xs font-semibold text-[var(--muted-foreground)]">
                     <CalendarDays className="h-3 w-3" /> HR & operations
                   </p>
                   {hr.holidayAllowanceDays != null || hr.holidayRemainingDays != null ? (
                     <div>
-                      <p className="text-xs tracking-wide text-[var(--muted-foreground)] uppercase">Holidays remaining</p>
+                      <p className="text-sm text-[var(--muted-foreground)]">Holidays remaining</p>
                       <p className="font-medium">
                         {hr.holidayRemainingDays ?? '—'} of {hr.holidayAllowanceDays ?? '—'} days
                       </p>
@@ -198,7 +224,7 @@ export function DetailsDrawer({
               ) : null}
 
               <div>
-                <p className="text-xs tracking-wide text-[var(--muted-foreground)] uppercase">Manager</p>
+                <p className="text-sm text-[var(--muted-foreground)]">Reports to</p>
                 {data.manager ? (
                   <button className="text-left font-medium" onClick={() => onFocus(data.manager!.positionId)}>
                     {data.manager.personName} · {data.manager.title}
@@ -209,7 +235,7 @@ export function DetailsDrawer({
               </div>
               {data.secondaryManagers.length > 0 ? (
                 <div>
-                  <p className="text-xs tracking-wide text-[var(--muted-foreground)] uppercase">Secondary / dotted line</p>
+                  <p className="text-sm text-[var(--muted-foreground)]">Dotted line</p>
                   <ul className="mt-1 space-y-1">
                     {data.secondaryManagers.map((item) => (
                       <li key={item.positionId}>
@@ -222,7 +248,7 @@ export function DetailsDrawer({
                 </div>
               ) : null}
               <div>
-                <p className="flex items-center gap-1 text-xs tracking-wide text-[var(--muted-foreground)] uppercase">
+                <p className="flex items-center gap-1 text-sm text-[var(--muted-foreground)]">
                   <Users className="h-3 w-3" /> Direct reports ({data.directReports.length})
                 </p>
                 <ul className="mt-1 space-y-1">
@@ -240,7 +266,7 @@ export function DetailsDrawer({
               </p>
               {data.otherPositions.length > 0 ? (
                 <div>
-                  <p className="text-xs tracking-wide text-[var(--muted-foreground)] uppercase">Other positions</p>
+                  <p className="text-sm text-[var(--muted-foreground)]">Other seats</p>
                   <ul>
                     {data.otherPositions.map((item) => (
                       <li key={item.positionId}>{item.title}</li>
@@ -249,7 +275,7 @@ export function DetailsDrawer({
                 </div>
               ) : null}
               <div>
-                <p className="flex items-center gap-1 text-xs tracking-wide text-[var(--muted-foreground)] uppercase">
+                <p className="flex items-center gap-1 text-sm text-[var(--muted-foreground)]">
                   <GitBranch className="h-3 w-3" /> Reporting chain
                 </p>
                 <ol className="mt-1 space-y-1">
@@ -263,7 +289,7 @@ export function DetailsDrawer({
                 </ol>
               </div>
               <div>
-                <p className="text-xs tracking-wide text-[var(--muted-foreground)] uppercase">Source</p>
+                <p className="text-sm text-[var(--muted-foreground)]">Source</p>
                 {data.provenance.length === 0 ? (
                   <p>Local</p>
                 ) : (

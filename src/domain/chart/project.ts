@@ -28,6 +28,8 @@ export interface ChartNodeModel {
   directReportCount: number;
   downstreamCount: number;
   collapsed: boolean;
+  planned?: boolean;
+  moved?: boolean;
     occupants: Array<{
       personId: string;
       displayName: string;
@@ -35,6 +37,8 @@ export interface ChartNodeModel {
       profilePhotoUrl: string | null;
       email: string | null;
       isPrimary: boolean;
+      status: string;
+      holidayRemainingDays: number | null;
     }>;
     groupIds: string[];
     groupNames: string[];
@@ -53,6 +57,7 @@ export function projectToChartModel(
   collapsedPositionIds: ReadonlySet<string>,
   showSecondaryLines: boolean,
   lookups?: ChartLookups,
+  flags?: { plannedPositionIds?: ReadonlySet<string>; movedPositionIds?: ReadonlySet<string> },
 ): { nodes: ChartNodeModel[]; edges: ChartEdgeModel[] } {
   const nodes: ChartNodeModel[] = [];
   const edges: ChartEdgeModel[] = [];
@@ -91,6 +96,8 @@ export function projectToChartModel(
       directReportCount: node.directReportIds.length,
       downstreamCount: graph.descendantCounts.get(id) ?? 0,
       collapsed: collapsedPositionIds.has(id) && node.directReportIds.length > 0,
+      planned: flags?.plannedPositionIds?.has(id) ?? false,
+      moved: flags?.movedPositionIds?.has(id) ?? false,
       occupants: node.occupants.map((occupant) => ({
         personId: occupant.person.id,
         displayName: occupant.person.displayName,
@@ -98,6 +105,8 @@ export function projectToChartModel(
         profilePhotoUrl: occupant.person.profilePhotoUrl,
         email: occupant.person.email,
         isPrimary: occupant.assignment.isPrimary,
+        status: occupant.person.status,
+        holidayRemainingDays: occupant.person.holidayRemainingDays ?? null,
       })),
       groupIds,
       groupNames,

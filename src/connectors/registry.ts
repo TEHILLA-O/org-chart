@@ -3,6 +3,7 @@ import { createMockMicrosoftConnector } from './microsoft-mock';
 import { createMicrosoftGraphConnector } from './microsoft-graph';
 import { createMockRipplingConnector } from './rippling-mock';
 import { createRipplingConnector } from './rippling';
+import { createSupabaseConnector } from './supabase';
 import { config } from '@/lib/config';
 
 export function resolveConnector(provider: string, mode: 'mock' | 'real' = 'mock'): ConnectorAdapter {
@@ -29,6 +30,13 @@ export function resolveConnector(provider: string, mode: 'mock' | 'real' = 'mock
     return createMockRipplingConnector();
   }
 
+  if (provider === 'SUPABASE') {
+    return createSupabaseConnector({
+      url: cfg.SUPABASE_URL,
+      apiKey: cfg.SUPABASE_SERVICE_KEY,
+    });
+  }
+
   throw new Error(`No connector registered for provider ${provider}`);
 }
 
@@ -41,6 +49,9 @@ export function connectorMode(
   if (provider === 'RIPPLING') return config().RIPPLING_CONNECTOR_MODE;
   if (provider === 'MICROSOFT_GRAPH' || provider === 'MICROSOFT_MOCK') {
     return config().MICROSOFT_CONNECTOR_MODE;
+  }
+  if (provider === 'SUPABASE') {
+    return config().SUPABASE_URL ? 'real' : 'mock';
   }
   return 'mock';
 }
