@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectItem } from '@/components/ui/select';
 
 interface KeyResult {
   id: string;
@@ -124,18 +125,18 @@ export default function OkrsPage() {
           </div>
           <div>
             <Label>Owner</Label>
-            <select
-              className="h-9 w-full rounded-md border border-[var(--border)] bg-white/8 px-2 text-sm"
+            <Select
+              className="w-full"
               value={ownerPersonId}
-              onChange={(event) => setOwnerPersonId(event.target.value)}
+              onValueChange={setOwnerPersonId}
             >
-              <option value="">Unassigned</option>
+              <SelectItem value="">Unassigned</SelectItem>
               {(peopleData?.people ?? []).map((person) => (
-                <option key={person.id} value={person.id}>
+                <SelectItem key={person.id} value={person.id}>
                   {person.displayName}
-                </option>
+                </SelectItem>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <Label>First key result</Label>
