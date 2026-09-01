@@ -8,15 +8,16 @@ const boolish = z
 const EnvSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   APP_URL: z.string().default('http://localhost:3000'),
-  DATABASE_URL: z.string().min(1),
-  AUTH_SECRET: z.string().min(16),
+  DATABASE_URL: z.string().min(1).optional(),
+  AUTH_SECRET: z.string().min(16).default('dev-only-change-me-in-any-non-local-environment-32b'),
   AUTH_TRUST_HOST: boolish,
   AUTH_MICROSOFT_ENTRA_ID_ID: z.string().optional(),
   AUTH_MICROSOFT_ENTRA_ID_SECRET: z.string().optional(),
   AUTH_MICROSOFT_ENTRA_ID_TENANT_ID: z.string().optional(),
   ENCRYPTION_KEY: z
     .string()
-    .regex(/^[0-9a-fA-F]{64}$/, 'ENCRYPTION_KEY must be 64 hex characters (32 bytes)'),
+    .regex(/^[0-9a-fA-F]{64}$/, 'ENCRYPTION_KEY must be 64 hex characters (32 bytes)')
+    .default('0000000000000000000000000000000000000000000000000000000000000000'),
   MICROSOFT_CONNECTOR_MODE: z.enum(['mock', 'real']).default('mock'),
   MICROSOFT_GRAPH_BASE_URL: z.string().default('https://graph.microsoft.com/v1.0'),
   MICROSOFT_PHOTO_SYNC: boolish,
