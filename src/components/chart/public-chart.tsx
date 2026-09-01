@@ -73,11 +73,11 @@ function PublicChartInner({ token, embed }: { token: string; embed?: boolean }) 
   }
 
   return (
-    <div className="flex h-full flex-col bg-[#f6f4ef]">
+    <div className="flex h-full flex-col bg-transparent">
       {embed ? null : (
-        <header className="flex items-center justify-between border-b border-[var(--border)] bg-white px-5 py-3">
+        <header className="flex items-center justify-between border-b border-white/10 bg-[rgba(18,0,36,0.55)] px-5 py-3 backdrop-blur-xl">
           <div>
-            <p className="text-[11px] font-semibold tracking-[0.22em] text-[#c9a227] uppercase">OrgPulse</p>
+            <p className="text-[11px] font-semibold tracking-[0.22em] text-[#22d3ee] uppercase">Opply ochart</p>
             <p className="text-sm font-semibold">{data?.chart?.name ?? 'Shared chart'}</p>
           </div>
           <p className="text-xs text-[var(--muted-foreground)]">
@@ -106,12 +106,12 @@ function PublicChartInner({ token, embed }: { token: string; embed?: boolean }) 
           proOptions={{ hideAttribution: true }}
           fitView
         >
-          <Background variant={BackgroundVariant.Dots} gap={22} size={1.15} color="rgba(47, 93, 98, 0.16)" />
-          <MiniMap pannable zoomable maskColor="rgba(246, 244, 239, 0.7)" />
+          <Background variant={BackgroundVariant.Dots} gap={22} size={1.15} color="rgba(255, 255, 255, 0.14)" />
+          <MiniMap pannable zoomable maskColor="rgba(18, 0, 36, 0.72)" />
           <Controls showInteractive={false} />
         </ReactFlow>
         {selected ? (
-          <aside className="absolute top-4 right-4 w-64 rounded-2xl border border-[var(--border)] bg-white p-4 shadow-[0_16px_40px_rgba(23,20,31,0.12)]">
+          <aside className="absolute top-4 right-4 w-64 rounded-2xl border border-white/15 bg-[rgba(28,8,62,0.86)] p-4 text-white shadow-[0_16px_40px_rgba(6,0,22,0.4)] backdrop-blur-xl">
             <p className="text-sm font-semibold">{selected.occupants[0]?.displayName ?? 'Open role'}</p>
             <p className="text-xs text-[var(--muted-foreground)]">{selected.title}</p>
             <p className="mt-2 text-xs">{selected.departmentName ?? 'Unassigned'}</p>

@@ -101,7 +101,7 @@ export function PersonSkillsPanel({
   });
 
   return (
-    <div className="space-y-3 rounded-2xl bg-[#f6f4ef] p-4">
+    <div className="space-y-3 rounded-2xl bg-white/8 p-4">
       <p className="text-xs font-semibold text-[var(--muted-foreground)]">Skills</p>
       <div className="flex flex-wrap gap-1.5">
         {(data?.skills ?? []).length === 0 ? (
@@ -144,7 +144,7 @@ export function PersonSkillsPanel({
           <div>
             <Label>Paste LinkedIn headline or about text</Label>
             <textarea
-              className="mt-1 min-h-16 w-full rounded-md border border-[var(--border)] bg-white px-3 py-2 text-sm"
+              className="mt-1 min-h-16 w-full rounded-md border border-[var(--border)] bg-white/8 px-3 py-2 text-sm"
               placeholder="We do not fetch LinkedIn. Paste public text, then allocate. GitHub languages are read if a GitHub profile is linked."
               value={linkedInText}
               onChange={(event) => setLinkedInText(event.target.value)}

@@ -11,7 +11,7 @@ export const GET = apiHandler('charts:read', async (ctx) => {
         {
           id: 'live',
           name: 'Live organisation',
-          description: 'Positions and people as they sit in OrgPulse today.',
+          description: 'Positions and people as they sit in Opply ochart today.',
           href: '/charts',
           count: demoPeople.length,
         },
@@ -46,7 +46,7 @@ export const GET = apiHandler('charts:read', async (ctx) => {
       {
         id: 'live',
         name: 'Live organisation',
-        description: 'Positions and people as they sit in OrgPulse today.',
+        description: 'Positions and people as they sit in Opply ochart today.',
         href: '/charts',
         count: people,
       },

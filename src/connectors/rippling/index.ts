@@ -30,7 +30,7 @@ export function createRipplingConnector(credentials?: {
       headers: {
         authorization: `Bearer ${token}`,
         accept: 'application/json',
-        'user-agent': 'OrgPulse/0.1',
+        'user-agent': 'OpplyOchart/0.1',
       },
     });
   }
@@ -55,7 +55,7 @@ export function createRipplingConnector(credentials?: {
           headers: {
             authorization: `Bearer ${token}`,
             accept: 'application/json',
-            'user-agent': 'OrgPulse/0.1',
+            'user-agent': 'OpplyOchart/0.1',
           },
         });
         if (!response.ok) {

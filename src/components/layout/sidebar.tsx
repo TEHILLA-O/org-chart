@@ -76,18 +76,18 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        'no-print flex h-full flex-col bg-[var(--sidebar)] text-[var(--sidebar-foreground)] transition-[width]',
+        'no-print flex h-full flex-col border-r border-white/10 bg-[var(--sidebar)] text-[var(--sidebar-foreground)] backdrop-blur-xl transition-[width]',
         collapsed ? 'w-[72px]' : 'w-[232px]',
       )}
     >
       <div className={cn('flex items-center gap-3 px-4 pt-5 pb-4', collapsed && 'justify-center px-2')}>
-        <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#c9a227,#2f5d62)] text-sm font-bold text-white shadow-inner">
+        <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#22d3ee,#e879f9)] text-sm font-bold text-[#120024] shadow-[0_0_18px_rgba(34,211,238,0.45)]">
           O
         </div>
         {collapsed ? null : (
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold tracking-[0.22em] text-[#e4c56a] uppercase">OrgPulse</p>
-            <p className="truncate text-sm text-white/90">Northstar</p>
+            <p className="text-sm font-semibold tracking-tight text-white">Opply</p>
+            <p className="truncate text-xs text-[#67e8f9]">ochart</p>
           </div>
         )}
       </div>
@@ -112,7 +112,7 @@ export function AppSidebar({
                 <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
                   <span>{item.label}</span>
                   {badge ? (
-                    <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] tracking-wide text-[#e4c56a] uppercase">
+                    <span className="rounded-full bg-cyan-400/15 px-1.5 py-0.5 text-[9px] tracking-wide text-[#67e8f9] uppercase">
                       {badge}
                     </span>
                   ) : null}

@@ -119,10 +119,10 @@ export function DetailsDrawer({
                 <img
                   src={data.profile.profilePhotoUrl}
                   alt=""
-                  className="h-20 w-20 rounded-full object-cover ring-4 ring-[#efeae1]"
+                  className="h-20 w-20 rounded-full object-cover ring-4 ring-white/20"
                 />
               ) : (
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#2f5d62] text-lg font-semibold text-white">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#22d3ee] text-lg font-semibold text-[#071018]">
                   {data.isVacant ? '+' : (occupant?.displayName ?? '?').slice(0, 1)}
                 </div>
               )}
@@ -136,7 +136,7 @@ export function DetailsDrawer({
                   {data.department ? (
                     <span
                       className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold text-white uppercase"
-                      style={{ background: data.department.colour ?? '#2f5d62' }}
+                      style={{ background: data.department.colour ?? '#22d3ee' }}
                     >
                       {data.department.name}
                     </span>
@@ -153,7 +153,7 @@ export function DetailsDrawer({
 
             {data.profile?.bio ? <p className="mt-4 text-sm leading-relaxed">{data.profile.bio}</p> : null}
             {data.profile?.profileLinkUrl ? (
-              <a className="mt-2 inline-block text-sm font-medium text-[#2f5d62] underline" href={data.profile.profileLinkUrl} target="_blank" rel="noreferrer">
+              <a className="mt-2 inline-block text-sm font-medium text-[#22d3ee] underline" href={data.profile.profileLinkUrl} target="_blank" rel="noreferrer">
                 Linked profile
                 {data.profile.profileLinkUsername ? ` · ${data.profile.profileLinkUsername}` : ''}
               </a>
@@ -182,7 +182,7 @@ export function DetailsDrawer({
               ) : null}
 
               {hr && Object.keys(hr).length > 0 ? (
-                <div className="space-y-1 rounded-2xl bg-[#f6f4ef] p-4">
+                <div className="space-y-1 rounded-2xl bg-white/8 p-4">
                   <p className="mb-2 flex items-center gap-1 text-xs font-semibold text-[var(--muted-foreground)]">
                     <CalendarDays className="h-3 w-3" /> HR & operations
                   </p>
@@ -195,7 +195,7 @@ export function DetailsDrawer({
                       {allowance > 0 ? (
                         <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--border)]">
                           <div
-                            className="h-full rounded-full bg-[#2f5d62]"
+                            className="h-full rounded-full bg-[#22d3ee]"
                             style={{ width: `${leavePct}%` }}
                           />
                         </div>

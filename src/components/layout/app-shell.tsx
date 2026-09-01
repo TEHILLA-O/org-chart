@@ -21,7 +21,7 @@ export function AppShell({
   const isChart = pathname.startsWith('/charts');
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[var(--background)]">
+    <div className="flex h-screen overflow-hidden bg-transparent">
       <AppSidebar
         collapsed={collapsed}
         onToggle={() => setCollapsed((value) => !value)}

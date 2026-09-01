@@ -6,10 +6,10 @@ export function Badge({
   ...props
 }: React.ComponentProps<'span'> & { tone?: 'default' | 'gold' | 'vacant' | 'sea' }) {
   const tones = {
-    default: 'bg-[var(--muted)] text-[var(--foreground)]',
-    gold: 'bg-[#f3e4b3] text-[#6a4f00]',
-    vacant: 'bg-[#f4d7c8] text-[#7a3419]',
-    sea: 'bg-[#d5e6e4] text-[#1d4448]',
+    default: 'bg-white/10 text-white',
+    gold: 'bg-[#e879f9]/20 text-[#f5d0fe]',
+    vacant: 'bg-[#22d3ee]/18 text-[#a5f3fc]',
+    sea: 'bg-[#22d3ee]/20 text-[#67e8f9]',
   };
   return (
     <span

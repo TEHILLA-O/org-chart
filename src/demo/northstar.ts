@@ -12,12 +12,12 @@ export const DEMO_USER_ID = '22222222-2222-4222-a222-222222222222';
 const now = new Date('2026-03-01T00:00:00.000Z');
 
 const dept = {
-  exec: { id: 'd-exec', name: 'Executive Office', code: 'EXEC', colour: '#1f3a5f', parentDepartmentId: null },
-  fin: { id: 'd-fin', name: 'Finance', code: 'FIN', colour: '#2f6f6a', parentDepartmentId: null },
-  ppl: { id: 'd-ppl', name: 'People & Culture', code: 'PPL', colour: '#6b4f7a', parentDepartmentId: null },
-  tech: { id: 'd-tech', name: 'Technology', code: 'TECH', colour: '#2c4a7c', parentDepartmentId: null },
-  ops: { id: 'd-ops', name: 'Operations', code: 'OPS', colour: '#5c4a32', parentDepartmentId: null },
-  com: { id: 'd-com', name: 'Commercial', code: 'COM', colour: '#8a4b2f', parentDepartmentId: null },
+  exec: { id: 'd-exec', name: 'Executive Office', code: 'EXEC', colour: '#7c3aed', parentDepartmentId: null },
+  fin: { id: 'd-fin', name: 'Finance', code: 'FIN', colour: '#22d3ee', parentDepartmentId: null },
+  ppl: { id: 'd-ppl', name: 'People & Culture', code: 'PPL', colour: '#e879f9', parentDepartmentId: null },
+  tech: { id: 'd-tech', name: 'Technology', code: 'TECH', colour: '#6366f1', parentDepartmentId: null },
+  ops: { id: 'd-ops', name: 'Operations', code: 'OPS', colour: '#8b5cf6', parentDepartmentId: null },
+  com: { id: 'd-com', name: 'Commercial', code: 'COM', colour: '#ec4899', parentDepartmentId: null },
 };
 
 const loc = {
@@ -26,8 +26,8 @@ const loc = {
 };
 
 const groups = [
-  { id: 'g-emp', name: 'Employees', slug: 'employees', kind: 'COHORT', colour: '#2f5d62', description: 'Everyone on the payroll', isSystem: true, sortOrder: 0, organisationId: DEMO_ORG_ID, createdAt: now, updatedAt: now, deletedAt: null },
-  { id: 'g-board', name: 'Leadership', slug: 'leadership', kind: 'GOVERNANCE', colour: '#c9a227', description: 'Executive team', isSystem: false, sortOrder: 1, organisationId: DEMO_ORG_ID, createdAt: now, updatedAt: now, deletedAt: null },
+  { id: 'g-emp', name: 'Employees', slug: 'employees', kind: 'COHORT', colour: '#22d3ee', description: 'Everyone on the payroll', isSystem: true, sortOrder: 0, organisationId: DEMO_ORG_ID, createdAt: now, updatedAt: now, deletedAt: null },
+  { id: 'g-board', name: 'Leadership', slug: 'leadership', kind: 'GOVERNANCE', colour: '#e879f9', description: 'Executive team', isSystem: false, sortOrder: 1, organisationId: DEMO_ORG_ID, createdAt: now, updatedAt: now, deletedAt: null },
 ];
 
 interface Seat {

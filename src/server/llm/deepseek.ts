@@ -27,7 +27,7 @@ export async function completeOrgChat(input: {
         {
           role: 'system',
           content:
-            'You are OrgPulse, an organisational chart assistant. Answer only from the supplied organisation facts. Do not invent people, salaries, or unstated reporting lines. If the facts are insufficient, say so.',
+            'You are Opply ochart, an organisational chart assistant. Answer only from the supplied organisation facts. Do not invent people, salaries, or unstated reporting lines. If the facts are insufficient, say so.',
         },
         {
           role: 'user',

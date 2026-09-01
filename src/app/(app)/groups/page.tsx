@@ -71,7 +71,7 @@ export default function GroupsPage() {
           <div>
             <Label>Kind</Label>
             <select
-              className="h-9 rounded-md border border-[var(--border)] bg-white px-2 text-sm"
+              className="h-9 rounded-md border border-[var(--border)] bg-white/8 px-2 text-sm"
               value={kind}
               onChange={(event) => setKind(event.target.value as typeof kind)}
             >

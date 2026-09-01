@@ -10,7 +10,7 @@ const sans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'OrgPulse',
+  title: 'Opply ochart',
   description: 'Organisational intelligence and interactive org charts',
 };
 
@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${sans.className} min-h-screen antialiased`}>
         <Providers>
           {children}
-          <Toaster position="bottom-right" richColors />
+          <Toaster position="bottom-right" theme="dark" richColors />
         </Providers>
       </body>
     </html>

@@ -382,8 +382,8 @@ function ChartInner({ role }: { role: string }) {
               proOptions={{ hideAttribution: true }}
               fitView
             >
-              <Background variant={BackgroundVariant.Dots} gap={22} size={1.15} color="rgba(47, 93, 98, 0.16)" />
-              <MiniMap pannable zoomable maskColor="rgba(246, 244, 239, 0.7)" />
+              <Background variant={BackgroundVariant.Dots} gap={22} size={1.15} color="rgba(255, 255, 255, 0.14)" />
+              <MiniMap pannable zoomable maskColor="rgba(18, 0, 36, 0.72)" />
               <Controls showInteractive={false} />
             </ReactFlow>
             <ChartLegend />

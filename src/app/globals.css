@@ -2,37 +2,37 @@
 
 @theme {
   --font-sans: "Plus Jakarta Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-  --color-ink: #17141f;
-  --color-ink-soft: #221d2c;
-  --color-paper: #f6f4ef;
-  --color-paper-deep: #ece8e0;
-  --color-gold: #c9a227;
-  --color-sea: #2f5d62;
-  --color-sea-bright: #3d7a80;
-  --color-clay: #8a4b2f;
+  --color-ink: #120024;
+  --color-ink-soft: #2a0860;
+  --color-paper: #120024;
+  --color-paper-deep: #1a0538;
+  --color-gold: #e879f9;
+  --color-sea: #22d3ee;
+  --color-sea-bright: #67e8f9;
+  --color-clay: #f472b6;
   --radius-sm: 0.5rem;
   --radius-md: 0.85rem;
   --radius-lg: 1.15rem;
 }
 
 :root {
-  --background: #f6f4ef;
-  --foreground: #1b1822;
-  --card: #ffffff;
-  --card-foreground: #1b1822;
-  --muted: #efeae1;
-  --muted-foreground: #6b6574;
-  --border: #e4ddd2;
-  --primary: #2f5d62;
-  --primary-foreground: #f7f4ec;
-  --accent: #c9a227;
-  --accent-foreground: #1a1404;
-  --destructive: #9b2c2c;
-  --ring: #2f5d62;
-  --sidebar: #17141f;
-  --sidebar-foreground: #f4f0e8;
-  --sidebar-muted: #9a94a3;
-  --shadow-soft: 0 10px 30px rgba(23, 20, 31, 0.07);
+  --background: #120024;
+  --foreground: #f8f5ff;
+  --card: rgba(28, 8, 62, 0.62);
+  --card-foreground: #f8f5ff;
+  --muted: rgba(255, 255, 255, 0.08);
+  --muted-foreground: #cbb6ef;
+  --border: rgba(255, 255, 255, 0.14);
+  --primary: #22d3ee;
+  --primary-foreground: #071018;
+  --accent: #e879f9;
+  --accent-foreground: #2a0538;
+  --destructive: #fb7185;
+  --ring: #22d3ee;
+  --sidebar: rgba(10, 0, 28, 0.72);
+  --sidebar-foreground: #f8f5ff;
+  --sidebar-muted: #b9a3e6;
+  --shadow-soft: 0 18px 50px rgba(6, 0, 22, 0.38);
 }
 
 * {
@@ -41,20 +41,27 @@
 
 html,
 body {
-  background: var(--background);
   color: var(--foreground);
   min-height: 100%;
+  color-scheme: dark;
 }
 
 body {
   font-family: var(--font-sans);
+  background-color: #120024;
+  background-image:
+    radial-gradient(1100px 640px at 8% -8%, rgba(124, 58, 237, 0.62), transparent 58%),
+    radial-gradient(820px 520px at 92% 6%, rgba(34, 211, 238, 0.22), transparent 52%),
+    radial-gradient(900px 560px at 78% 108%, rgba(217, 70, 239, 0.22), transparent 55%),
+    linear-gradient(180deg, #4c1d95 0%, #2a0860 34%, #120024 100%);
+  background-attachment: fixed;
 }
 
 .canvas-grid {
   background:
-    radial-gradient(1200px 600px at 12% -10%, rgba(201, 162, 39, 0.08), transparent 55%),
-    radial-gradient(900px 500px at 100% 0%, rgba(47, 93, 98, 0.07), transparent 50%),
-    #f7f5f1;
+    radial-gradient(900px 480px at 12% -20%, rgba(34, 211, 238, 0.16), transparent 55%),
+    radial-gradient(800px 420px at 100% 0%, rgba(232, 121, 249, 0.12), transparent 50%),
+    transparent;
 }
 
 .react-flow__controls {
@@ -62,11 +69,17 @@ body {
   border: 1px solid var(--border);
   border-radius: 14px;
   box-shadow: var(--shadow-soft);
+  background: rgba(20, 4, 48, 0.86) !important;
 }
 
 .react-flow__controls-button {
   border-bottom-color: var(--border) !important;
-  background: #fff !important;
+  background: transparent !important;
+  fill: #f8f5ff !important;
+}
+
+.react-flow__controls-button:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
 }
 
 .react-flow__minimap {
@@ -74,6 +87,7 @@ body {
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: var(--shadow-soft);
+  background: rgba(20, 4, 48, 0.86) !important;
 }
 
 .react-flow__attribution {
@@ -83,15 +97,16 @@ body {
 select.soft-select {
   height: 2.25rem;
   border-radius: 999px;
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   background: var(--muted);
+  color: var(--foreground);
   padding: 0 0.9rem;
   font-size: 0.8125rem;
 }
 
 select.soft-select:focus {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(47, 93, 98, 0.25);
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.35);
 }
 
 @media print {
@@ -102,6 +117,7 @@ select.soft-select:focus {
   html,
   body {
     background: #fff;
+    color: #120024;
     height: auto;
   }
 

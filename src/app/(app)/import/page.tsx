@@ -136,7 +136,7 @@ export default function ImportPage() {
                 {apply.isPending ? 'Applying…' : `Apply ${result.counts.new} rows`}
               </Button>
             ) : (
-              <p className="text-sm font-medium text-[#2f5d62]">Applied to the live organisation</p>
+              <p className="text-sm font-medium text-[#22d3ee]">Applied to the live organisation</p>
             )}
           </div>
           <div className="overflow-x-auto">

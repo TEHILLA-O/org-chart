@@ -12,7 +12,7 @@ export function PositionNode({ data, selected }: NodeProps) {
   const occupant = model.occupants[0];
   const name = occupant?.displayName ?? 'Open role';
   const horizontal = model.layoutDirection === 'LEFT_RIGHT';
-  const strip = model.departmentColour ?? '#2f5d62';
+  const strip = model.departmentColour ?? '#22d3ee';
   const onLeave = occupant?.status === 'ON_LEAVE';
   const leaveDays = occupant?.holidayRemainingDays;
   const showLeave = onLeave || (typeof leaveDays === 'number' && leaveDays <= 8);
@@ -20,19 +20,19 @@ export function PositionNode({ data, selected }: NodeProps) {
   return (
     <div
       className={cn(
-        'relative flex h-[156px] w-[220px] flex-col overflow-hidden rounded-2xl border bg-white shadow-[0_10px_28px_rgba(23,20,31,0.07)] transition-shadow',
+        'relative flex h-[156px] w-[220px] flex-col overflow-hidden rounded-2xl border bg-[rgba(28,8,62,0.78)] text-white shadow-[0_16px_40px_rgba(6,0,22,0.35)] backdrop-blur-xl transition-shadow',
         selected
-          ? 'border-[#2f5d62] ring-4 ring-[#2f5d62]/12'
-          : 'border-transparent hover:shadow-[0_14px_32px_rgba(23,20,31,0.1)]',
-        model.isVacant && 'border-dashed border-[#c8b8a8] bg-[#fbf8f3]',
-        model.planned && 'ring-2 ring-[#c9a227]/50',
-        model.moved && !model.planned && 'ring-2 ring-[#2f5d62]/35',
+          ? 'border-[#22d3ee] ring-4 ring-[#22d3ee]/25'
+          : 'border-white/12 hover:shadow-[0_18px_46px_rgba(34,211,238,0.18)]',
+        model.isVacant && 'border-dashed border-white/30 bg-[rgba(28,8,62,0.45)]',
+        model.planned && 'ring-2 ring-[#e879f9]/50',
+        model.moved && !model.planned && 'ring-2 ring-[#22d3ee]/40',
       )}
     >
       <Handle
         type="target"
         position={horizontal ? Position.Left : Position.Top}
-        className="!h-2.5 !w-2.5 !border-2 !border-white !bg-[#c9c3b8]"
+        className="!h-2.5 !w-2.5 !border-2 !border-[#1c0840] !bg-[#22d3ee]"
       />
       <div className="flex flex-1 flex-col px-3.5 pt-3.5 pb-2">
         <div className="flex items-start gap-2.5">
@@ -41,13 +41,13 @@ export function PositionNode({ data, selected }: NodeProps) {
             <img
               src={occupant.profilePhotoUrl}
               alt=""
-              className="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-white"
+              className="h-11 w-11 shrink-0 rounded-full object-cover ring-2 ring-white/30"
             />
           ) : (
             <div
               className={cn(
                 'flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-                model.isVacant ? 'bg-[#efe3d6] text-[#8a4b2f]' : 'bg-[#2f5d62] text-[#f7f4ec]',
+                model.isVacant ? 'bg-white/10 text-[#67e8f9]' : 'bg-[#22d3ee] text-[#071018]',
               )}
             >
               {model.isVacant ? '+' : initials(name)}
@@ -62,32 +62,32 @@ export function PositionNode({ data, selected }: NodeProps) {
         </div>
         <div className="mt-2.5 flex flex-wrap gap-1">
           {model.planned ? (
-            <span className="rounded-full bg-[#f6eee4] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-[#8a4b2f] uppercase">
+            <span className="rounded-full bg-[#e879f9]/20 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-[#f5d0fe] uppercase">
               Plan
             </span>
           ) : null}
           {model.moved ? (
-            <span className="rounded-full bg-[#e8f3f1] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-[#2f5d62] uppercase">
+            <span className="rounded-full bg-[#22d3ee]/15 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-[#67e8f9] uppercase">
               Moved
             </span>
           ) : null}
           {showLeave ? (
-            <span className="rounded-full bg-[#e8f3f1] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-[#2f5d62] uppercase">
+            <span className="rounded-full bg-[#22d3ee]/15 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-[#67e8f9] uppercase">
               {onLeave ? 'On leave' : `${leaveDays}d leave`}
             </span>
           ) : null}
           {model.occupants.length > 1 ? (
-            <span className="rounded-full bg-[#efeae1] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-[#5c5666] uppercase">
+            <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-white/80 uppercase">
               Shared
             </span>
           ) : null}
           {model.hasSecondary ? (
-            <span className="rounded-full bg-[#f6eee4] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-[#8a4b2f] uppercase">
+            <span className="rounded-full bg-[#e879f9]/20 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-[#f5d0fe] uppercase">
               Dotted
             </span>
           ) : null}
           {model.collapsed ? (
-            <span className="rounded-full bg-[#efeae1] px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-[#5c5666] uppercase">
+            <span className="rounded-full bg-white/10 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-white/80 uppercase">
               +{model.directReportCount}
             </span>
           ) : null}
@@ -95,7 +95,7 @@ export function PositionNode({ data, selected }: NodeProps) {
       </div>
       <div
         className="flex h-8 items-center justify-between px-3 text-[11px] font-medium text-white"
-        style={{ background: model.isVacant ? '#b9a898' : strip }}
+        style={{ background: model.isVacant ? 'rgba(255,255,255,0.18)' : strip }}
       >
         <span className="truncate">{model.isVacant ? 'Open role' : (model.departmentName ?? 'Unassigned')}</span>
         {model.directReportCount > 0 ? (
@@ -107,7 +107,7 @@ export function PositionNode({ data, selected }: NodeProps) {
       <Handle
         type="source"
         position={horizontal ? Position.Right : Position.Bottom}
-        className="!h-2.5 !w-2.5 !border-2 !border-white !bg-[#c9c3b8]"
+        className="!h-2.5 !w-2.5 !border-2 !border-[#1c0840] !bg-[#22d3ee]"
       />
     </div>
   );
