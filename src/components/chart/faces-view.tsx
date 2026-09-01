@@ -1,7 +1,7 @@
 'use client';
 
 import { Badge } from '@/components/ui/badge';
-import { initials } from '@/lib/utils';
+import { initials, portraitUrl } from '@/lib/utils';
 import type { ChartNodeModel } from '@/domain/chart/project';
 import { cn } from '@/lib/utils';
 
@@ -45,17 +45,18 @@ export function FacesView({
             <h2 className="text-sm font-semibold">{group.name}</h2>
             <span className="text-xs text-[var(--muted-foreground)]">{group.nodes.length}</span>
           </div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-3">
+          <div className="stagger-in grid grid-cols-[repeat(auto-fill,minmax(168px,1fr))] gap-3">
             {group.nodes.map((node) => {
               const occupant = node.occupants[0];
               const name = occupant?.displayName ?? 'Vacant';
+              const photo = occupant ? portraitUrl(occupant.personId, occupant.profilePhotoUrl) : null;
               return (
                 <button
                   key={node.id}
                   type="button"
                   onClick={() => onSelect(node.id)}
                   className={cn(
-                    'overflow-hidden rounded-2xl border bg-[rgba(28,8,62,0.72)] text-left text-white shadow-[0_10px_24px_rgba(6,0,22,0.28)] backdrop-blur-xl transition-shadow hover:shadow-[0_14px_30px_rgba(34,211,238,0.16)]',
+                    'overflow-hidden rounded-2xl border bg-[rgba(28,8,62,0.72)] text-left text-white shadow-[0_10px_24px_rgba(6,0,22,0.28)] backdrop-blur-xl transition-[transform,box-shadow,border-color] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 hover:shadow-[0_14px_30px_rgba(34,211,238,0.16)] active:scale-[0.98]',
                     selectedId === node.id
                       ? 'border-[#22d3ee] ring-4 ring-[#22d3ee]/20'
                       : 'border-white/12',
@@ -63,12 +64,12 @@ export function FacesView({
                   )}
                 >
                   <div className="flex flex-col items-center p-4 text-center">
-                    {occupant?.profilePhotoUrl ? (
+                    {photo ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={occupant.profilePhotoUrl}
+                        src={photo}
                         alt=""
-                        className="h-16 w-16 rounded-full object-cover"
+                        className="h-16 w-16 rounded-full object-cover ring-2 ring-white/25"
                       />
                     ) : (
                       <div

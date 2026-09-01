@@ -5,6 +5,14 @@ export function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
 
+export function portraitUrl(seed: string, stored?: string | null): string {
+  if (stored) return stored;
+  let hash = 0;
+  for (const char of seed) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  const gender = hash % 2 === 0 ? 'women' : 'men';
+  return `https://randomuser.me/api/portraits/${gender}/${hash % 99}.jpg`;
+}
+
 export function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';
@@ -12,6 +20,13 @@ export function initials(name: string): string {
     return (parts[0]?.slice(0, 2) ?? '?').toUpperCase();
   }
   return `${parts[0]?.[0] ?? ''}${parts[parts.length - 1]?.[0] ?? ''}`.toUpperCase();
+}
+
+export function splitDisplayName(displayName: string): { firstName: string; lastName: string } {
+  const parts = displayName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { firstName: 'Unknown', lastName: 'Person' };
+  if (parts.length === 1) return { firstName: parts[0]!, lastName: parts[0]! };
+  return { firstName: parts[0]!, lastName: parts.slice(1).join(' ') };
 }
 
 export function fullName(firstName: string, lastName: string, preferredName?: string | null): string {

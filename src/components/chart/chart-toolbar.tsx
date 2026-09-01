@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Download, Focus, Printer, Search, Share2 } from 'lucide-react';
+import { Download, Focus, Printer, Search, Share2, UserPlus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -53,6 +53,7 @@ export function ChartToolbar({
   scenarioId,
   onScenario,
   canShare,
+  onAddPerson,
 }: {
   departments: Array<{ id: string; name: string }>;
   locations: Array<{ id: string; name: string }>;
@@ -79,6 +80,7 @@ export function ChartToolbar({
   scenarioId: string | null;
   onScenario: (id: string | null) => void;
   canShare: boolean;
+  onAddPerson?: () => void;
 }) {
   const [q, setQ] = useState('');
   const { data } = useQuery({
@@ -102,10 +104,10 @@ export function ChartToolbar({
               key={item.id}
               type="button"
               className={cn(
-                'rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors',
+                'rounded-full px-3.5 py-1.5 text-xs font-semibold transition-[color,background-color,box-shadow,transform] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)]',
                 surface === item.id
-                  ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm'
-                  : 'text-[var(--muted-foreground)] hover:text-white',
+                  ? 'bg-[var(--primary)] text-[var(--primary-foreground)] shadow-[0_6px_16px_rgba(34,211,238,0.28)]'
+                  : 'text-[var(--muted-foreground)] hover:bg-white/8 hover:text-white',
               )}
               onClick={() => onSurface(item.id)}
             >
@@ -130,11 +132,11 @@ export function ChartToolbar({
             }}
           />
           {surface === 'hierarchy' && data?.results?.length ? (
-            <ul className="absolute z-20 mt-2 max-h-72 w-full overflow-auto rounded-2xl border border-white/15 bg-[#1c0840]/95 p-1 shadow-[0_16px_40px_rgba(6,0,22,0.4)] backdrop-blur-xl">
+            <ul className="motion-pop-in absolute z-20 mt-2 max-h-72 w-full overflow-auto rounded-2xl border border-white/15 bg-[#1c0840]/95 p-1 shadow-[0_16px_40px_rgba(6,0,22,0.4)] backdrop-blur-xl">
               {data.results.map((hit) => (
                 <li key={`${hit.kind}-${hit.id}`}>
                   <button
-                    className="w-full rounded-xl px-3 py-2 text-left text-sm hover:bg-[var(--muted)]"
+                    className="w-full rounded-xl px-3 py-2 text-left text-sm transition-[background-color,transform] duration-150 hover:translate-x-0.5 hover:bg-[var(--muted)]"
                     onClick={() => {
                       if (hit.positionId) onSearchSelect(hit.positionId);
                       setQ('');
@@ -162,6 +164,12 @@ export function ChartToolbar({
         <Button variant="outline" size="sm" onClick={() => onExport('xlsx')}>
           XLSX
         </Button>
+        {canEdit && mode === 'LIVE' && onAddPerson ? (
+          <Button size="sm" onClick={onAddPerson}>
+            <UserPlus className="h-3.5 w-3.5" />
+            Add person
+          </Button>
+        ) : null}
         {canShare ? (
           <Button variant="outline" size="sm" onClick={onShare}>
             <Share2 className="h-3.5 w-3.5" />

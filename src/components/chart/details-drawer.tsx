@@ -1,10 +1,14 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import type { ReactNode } from 'react';
 import { Mail, Phone, GitBranch, Users, CalendarDays } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { PersonSkillsPanel } from '@/components/people/person-skills-panel';
 
@@ -80,6 +84,7 @@ export function DetailsDrawer({
   onClose,
   onFocus,
   canEdit,
+  liveEdit,
   onCreateVacancy,
 }: {
   positionId: string | null;
@@ -87,6 +92,7 @@ export function DetailsDrawer({
   onClose: () => void;
   onFocus: (id: string) => void;
   canEdit: boolean;
+  liveEdit: boolean;
   onCreateVacancy: (managerPositionId: string) => void;
 }) {
   const { data } = useQuery({
@@ -304,15 +310,173 @@ export function DetailsDrawer({
             </dl>
 
             {canEdit ? (
-              <div className="mt-6 space-y-2">
-                <Button variant="outline" className="w-full" onClick={() => onCreateVacancy(data.position.id)}>
-                  Create subordinate vacancy
-                </Button>
-              </div>
+              <SeatEditor
+                positionId={data.position.id}
+                title={data.position.title}
+                displayName={occupant?.displayName ?? ''}
+                vacant={data.isVacant}
+                liveEdit={liveEdit}
+                onCreateVacancy={() => onCreateVacancy(data.position.id)}
+                onRemoved={onClose}
+              />
             ) : null}
           </div>
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+function SeatEditor({
+  positionId,
+  title,
+  displayName,
+  vacant,
+  liveEdit,
+  onCreateVacancy,
+  onRemoved,
+}: {
+  positionId: string;
+  title: string;
+  displayName: string;
+  vacant: boolean;
+  liveEdit: boolean;
+  onCreateVacancy: () => void;
+  onRemoved: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [name, setName] = useState(displayName);
+  const [role, setRole] = useState(title);
+  const [reportName, setReportName] = useState('');
+  const [reportTitle, setReportTitle] = useState('');
+
+  useEffect(() => {
+    setName(displayName);
+    setRole(title);
+  }, [displayName, title, positionId]);
+
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['chart-graph'] });
+    queryClient.invalidateQueries({ queryKey: ['position', positionId] });
+    queryClient.invalidateQueries({ queryKey: ['people'] });
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+  };
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/v1/positions/${positionId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          title: role.trim(),
+          displayName: name.trim() || undefined,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message ?? 'Could not save seat');
+      return payload;
+    },
+    onSuccess: () => {
+      toast.success('Saved to the organisation');
+      refresh();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const addReport = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/v1/charts/seats', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          displayName: reportName.trim(),
+          title: reportTitle.trim(),
+          managerPositionId: positionId,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message ?? 'Could not add person');
+      return payload;
+    },
+    onSuccess: () => {
+      toast.success('Person added under this seat');
+      setReportName('');
+      setReportTitle('');
+      refresh();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  const remove = useMutation({
+    mutationFn: async () => {
+      const response = await fetch(`/api/v1/positions/${positionId}`, { method: 'DELETE' });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message ?? 'Could not remove seat');
+      return payload;
+    },
+    onSuccess: () => {
+      toast.success('Seat removed. Direct reports moved up.');
+      refresh();
+      onRemoved();
+    },
+    onError: (error: Error) => toast.error(error.message),
+  });
+
+  if (!liveEdit) {
+    return (
+      <div className="mt-6 space-y-2">
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Switch to Live mode to save name and reporting changes to the database. Planning mode only records a scenario overlay.
+        </p>
+        <Button variant="outline" className="w-full" onClick={onCreateVacancy}>
+          Add planned vacancy
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-6 space-y-4 rounded-2xl border border-white/12 bg-white/5 p-4">
+      <p className="text-xs font-semibold tracking-wide text-[#67e8f9] uppercase">Edit this seat</p>
+      <div className="space-y-2">
+        <Label htmlFor="seat-name">{vacant ? 'Person name (fills this open role)' : 'Name'}</Label>
+        <Input id="seat-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Ada Lovelace" />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="seat-title">Job title</Label>
+        <Input id="seat-title" value={role} onChange={(event) => setRole(event.target.value)} placeholder="Head of Engineering" />
+      </div>
+      <Button className="w-full" disabled={save.isPending || role.trim().length < 2} onClick={() => save.mutate()}>
+        Save to database
+      </Button>
+
+      <div className="border-t border-white/10 pt-4">
+        <p className="text-xs font-semibold tracking-wide text-white/70 uppercase">Add someone underneath</p>
+        <div className="mt-2 space-y-2">
+          <Input value={reportName} onChange={(event) => setReportName(event.target.value)} placeholder="Name" />
+          <Input value={reportTitle} onChange={(event) => setReportTitle(event.target.value)} placeholder="Job title" />
+          <Button
+            variant="secondary"
+            className="w-full"
+            disabled={addReport.isPending || reportName.trim().length < 1 || reportTitle.trim().length < 2}
+            onClick={() => addReport.mutate()}
+          >
+            Add person
+          </Button>
+          <Button variant="outline" className="w-full" onClick={onCreateVacancy}>
+            Add open role
+          </Button>
+        </div>
+      </div>
+
+      <Button
+        variant="destructive"
+        className="w-full"
+        disabled={remove.isPending}
+        onClick={() => remove.mutate()}
+      >
+        Remove seat
+      </Button>
+    </div>
   );
 }

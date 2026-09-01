@@ -123,8 +123,8 @@ export function DirectoryView({
             <tr
               key={`${row.id}-${row.person}`}
               className={cn(
-                'cursor-pointer border-t border-[var(--border)] hover:bg-[var(--muted)]',
-                selectedId === row.id && 'bg-[#f3e4b3]/40',
+                'cursor-pointer border-t border-[var(--border)] transition-colors duration-150 hover:bg-white/8',
+                selectedId === row.id && 'bg-[#22d3ee]/12',
               )}
               onClick={() => onSelect(row.id)}
             >
@@ -214,9 +214,9 @@ export function GridView({
             <tr
               key={`${row.id}-${row.person}`}
               className={cn(
-                'cursor-pointer border-t border-[var(--border)] hover:bg-[var(--muted)]',
-                selectedId === row.id && 'bg-[#f3e4b3]/40',
-                row.status === 'Vacant' && 'text-[#7a3419]',
+                'cursor-pointer border-t border-[var(--border)] transition-colors duration-150 hover:bg-white/8',
+                selectedId === row.id && 'bg-[#22d3ee]/12',
+                row.status === 'Vacant' && 'text-[#67e8f9]',
               )}
               onClick={() => onSelect(row.id)}
             >

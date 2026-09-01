@@ -30,7 +30,7 @@ export function AppShell({
       />
       <div className="flex min-w-0 flex-1 flex-col">
         {isChart ? null : (
-          <header className="no-print flex h-14 shrink-0 items-center justify-between gap-4 px-6">
+          <header className="page-enter no-print flex h-14 shrink-0 items-center justify-between gap-4 px-6">
             <p className="text-sm text-[var(--muted-foreground)]">Northstar Holdings</p>
             {demo ? (
               <p className="text-xs text-[var(--muted-foreground)]">
@@ -40,7 +40,11 @@ export function AppShell({
           </header>
         )}
         <main className={cn('min-h-0 flex-1 overflow-auto', isChart && 'overflow-hidden p-0')}>
-          {isChart ? children : <div className="px-6 pb-8">{children}</div>}
+          {isChart ? children : (
+            <div key={pathname} className="page-enter px-6 pb-8">
+              {children}
+            </div>
+          )}
         </main>
       </div>
     </div>

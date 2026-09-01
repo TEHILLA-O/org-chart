@@ -9,7 +9,7 @@ export function ChartLegend() {
   ];
 
   return (
-    <div className="pointer-events-none absolute bottom-4 left-4 z-10 rounded-2xl border border-white/15 bg-[rgba(28,8,62,0.78)] px-3.5 py-2.5 text-white shadow-[0_10px_28px_rgba(6,0,22,0.35)] backdrop-blur-xl no-print">
+    <div className="page-enter pointer-events-none absolute bottom-4 left-4 z-10 rounded-2xl border border-white/15 bg-[rgba(28,8,62,0.78)] px-3.5 py-2.5 text-white shadow-[0_10px_28px_rgba(6,0,22,0.35)] backdrop-blur-xl no-print">
       <p className="text-[10px] font-semibold text-[var(--muted-foreground)]">Legend</p>
       <ul className="mt-1.5 space-y-1.5">
         {items.map((item) => (

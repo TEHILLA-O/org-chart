@@ -11,7 +11,7 @@ export async function createVacancy(input: {
   organisationId: string;
   actor: Actor;
   title: string;
-  managerPositionId: string;
+  managerPositionId?: string | null;
   departmentId?: string | null;
   locationId?: string | null;
   mode?: 'LIVE' | 'PLANNING';
@@ -23,13 +23,18 @@ export async function createVacancy(input: {
   assertWritable();
 
   if (input.mode === 'PLANNING') {
-    return addPlannedVacancy(input);
+    if (!input.managerPositionId) {
+      throw new ConflictError('Planning mode needs a manager seat.');
+    }
+    return addPlannedVacancy({ ...input, managerPositionId: input.managerPositionId });
   }
 
-  const manager = await prisma.position.findFirst({
-    where: { id: input.managerPositionId, organisationId: input.organisationId, deletedAt: null },
-  });
-  if (!manager) {
+  const manager = input.managerPositionId
+    ? await prisma.position.findFirst({
+        where: { id: input.managerPositionId, organisationId: input.organisationId, deletedAt: null },
+      })
+    : null;
+  if (input.managerPositionId && !manager) {
     throw new NotFoundError('Manager position not found.');
   }
 
@@ -38,23 +43,25 @@ export async function createVacancy(input: {
       data: {
         organisationId: input.organisationId,
         title: input.title,
-        departmentId: input.departmentId ?? manager.departmentId,
-        locationId: input.locationId ?? manager.locationId,
+        departmentId: input.departmentId ?? manager?.departmentId ?? null,
+        locationId: input.locationId ?? manager?.locationId ?? null,
         positionType: 'SINGLE',
         status: 'VACANT',
-        employmentType: manager.employmentType,
+        employmentType: manager?.employmentType ?? 'FULL_TIME',
       },
     });
 
-    await tx.reportingRelationship.create({
-      data: {
-        organisationId: input.organisationId,
-        subordinatePositionId: position.id,
-        managerPositionId: manager.id,
-        relationshipType: 'PRIMARY',
-        isPrimary: true,
-      },
-    });
+    if (manager) {
+      await tx.reportingRelationship.create({
+        data: {
+          organisationId: input.organisationId,
+          subordinatePositionId: position.id,
+          managerPositionId: manager.id,
+          relationshipType: 'PRIMARY',
+          isPrimary: true,
+        },
+      });
+    }
 
     await tx.auditEvent.create({
       data: {
@@ -64,7 +71,7 @@ export async function createVacancy(input: {
         action: 'CREATE',
         entityType: 'Position',
         entityId: position.id,
-        newState: { title: position.title, status: 'VACANT', managerPositionId: manager.id },
+        newState: { title: position.title, status: 'VACANT', managerPositionId: manager?.id ?? null },
         source: 'LOCAL',
         correlationId: getCorrelationId(),
       },
