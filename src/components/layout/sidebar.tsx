@@ -24,7 +24,6 @@ import {
   Target,
   Workflow,
 } from 'lucide-react';
-import { signOut } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 
 const NAV: Array<{ href: string; label: string; icon: LucideIcon; badge?: string }> = [
@@ -130,16 +129,6 @@ export function AppSidebar({
             <p className="text-[10px] tracking-wide text-[var(--sidebar-muted)] uppercase">{role}</p>
           </div>
         )}
-        <button
-          type="button"
-          onClick={() => signOut({ callbackUrl: '/login' })}
-          className={cn(
-            'flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-xs text-[var(--sidebar-muted)] hover:bg-white/10 hover:text-white',
-            collapsed && 'justify-center px-0',
-          )}
-        >
-          {collapsed ? 'Out' : 'Sign out'}
-        </button>
         <button
           type="button"
           onClick={onToggle}
