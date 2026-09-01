@@ -1,0 +1,983 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum OrgRole {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum PersonStatus {
+  ACTIVE
+  INACTIVE
+  ON_LEAVE
+  TERMINATED
+  PENDING
+}
+
+enum PositionType {
+  SINGLE
+  SHARED
+  ASSISTANT
+  DEPARTMENT
+  LOCATION
+  LINKED_CHART
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+  TEMPORARY
+  VOLUNTEER
+}
+
+enum PositionStatus {
+  ACTIVE
+  VACANT
+  PLANNED
+  FROZEN
+  CLOSED
+}
+
+enum AssignmentType {
+  PERMANENT
+  INTERIM
+  ACTING
+  SECONDMENT
+  TEMPORARY
+}
+
+enum RelationshipType {
+  PRIMARY
+  SECONDARY
+  DOTTED_LINE
+  FUNCTIONAL
+  PROJECT
+}
+
+enum ChartVisibility {
+  PRIVATE
+  ORGANISATION
+  SHARED
+}
+
+enum LayoutDirection {
+  TOP_DOWN
+  LEFT_RIGHT
+  BOTTOM_UP
+  MATRIX
+  GOVERNANCE
+}
+
+enum NodeStyle {
+  COMPACT
+  STANDARD
+  DETAILED
+}
+
+enum SnapshotSource {
+  MANUAL
+  SCHEDULED
+  PRE_SYNC
+  PRE_IMPORT
+  SCENARIO_BASE
+}
+
+enum ScenarioStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  ARCHIVED
+  APPLIED
+}
+
+enum ScenarioChangeType {
+  ADD_POSITION
+  REMOVE_POSITION
+  MOVE_POSITION
+  UPDATE_POSITION
+  ASSIGN_PERSON
+  UNASSIGN_PERSON
+  ADD_RELATIONSHIP
+  REMOVE_RELATIONSHIP
+  CREATE_VACANCY
+}
+
+enum CustomFieldType {
+  TEXT
+  NUMBER
+  BOOLEAN
+  DATE
+  SELECT
+  MULTI_SELECT
+  URL
+}
+
+enum CustomFieldTarget {
+  PERSON
+  POSITION
+}
+
+enum FieldVisibility {
+  PUBLIC
+  INTERNAL
+  ADMIN_ONLY
+}
+
+enum ConnectorProvider {
+  CSV
+  MICROSOFT_MOCK
+  MICROSOFT_GRAPH
+  GOOGLE_WORKSPACE
+  BAMBOO_HR
+  RIPPLING
+  GENERIC_REST
+}
+
+enum ConnectorStatus {
+  NOT_CONFIGURED
+  CONNECTED
+  ERROR
+  DISABLED
+}
+
+enum ExternalEntityType {
+  PERSON
+  POSITION
+  DEPARTMENT
+  LOCATION
+  RELATIONSHIP
+}
+
+enum SyncStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  COMPLETED_WITH_WARNINGS
+  FAILED
+}
+
+enum SyncTrigger {
+  MANUAL
+  SCHEDULED
+  WEBHOOK
+}
+
+enum SyncMode {
+  PREVIEW
+  APPLY
+}
+
+enum SyncRecordAction {
+  CREATE
+  UPDATE
+  UNCHANGED
+  DEACTIVATE
+  ERROR
+  SKIP
+}
+
+enum OrgGroupKind {
+  COHORT
+  GOVERNANCE
+  FUNCTION
+  TEAM
+}
+
+enum ProfileLinkProvider {
+  GITHUB
+  LINKEDIN
+  GRAVATAR
+  IMAGE_URL
+  MANUAL
+}
+
+enum DataSource {
+  LOCAL
+  CSV_IMPORT
+  MICROSOFT_MOCK
+  MICROSOFT_365
+  ENTRA_ID
+  GOOGLE_WORKSPACE
+  BAMBOO_HR
+  RIPPLING
+  GENERIC_REST
+}
+
+enum SharePermission {
+  VIEW_ONLY
+  VIEW_AND_EXPORT
+}
+
+enum ActorType {
+  USER
+  SYSTEM
+  CONNECTOR
+  SHARE_LINK
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  MOVE_POSITION
+  ASSIGN_PERSON
+  UNASSIGN_PERSON
+  SYNC_APPLIED
+  IMPORT_APPLIED
+  SCENARIO_APPLIED
+  PERMISSION_CHANGED
+  SHARE_CREATED
+  SHARE_REVOKED
+  EXPORT
+  LOGIN
+  LOGIN_FAILED
+}
+
+enum ImportJobStatus {
+  UPLOADED
+  ANALYSED
+  MAPPED
+  VALIDATED
+  PREVIEWED
+  APPLYING
+  COMPLETED
+  FAILED
+}
+
+enum ImportRowStatus {
+  PENDING
+  NEW
+  CHANGED
+  UNCHANGED
+  MISSING
+  DUPLICATE
+  INVALID
+  APPLIED
+  SKIPPED
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+model Organisation {
+  id        String    @id @default(uuid())
+  name      String
+  slug      String    @unique
+  timezone  String    @default("Europe/London")
+  settings  Json      @default("{}")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  memberships            OrganisationMembership[]
+  people                 Person[]
+  positions              Position[]
+  assignments            Assignment[]
+  departments            Department[]
+  locations              Location[]
+  reportingRelationships ReportingRelationship[]
+  charts                 Chart[]
+  snapshots              Snapshot[]
+  scenarios              Scenario[]
+  customFieldDefinitions CustomFieldDefinition[]
+  connectors             Connector[]
+  externalIdentities     ExternalIdentity[]
+  fieldProvenances       FieldProvenance[]
+  syncJobs               SyncJob[]
+  shareLinks             ShareLink[]
+  auditEvents            AuditEvent[]
+  importJobs             ImportJob[]
+  orgGroups              OrgGroup[]
+  personGroupMemberships PersonGroupMembership[]
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  name            String?
+  image           String?
+  emailVerified   DateTime?
+  passwordHash    String?
+  isPlatformAdmin Boolean   @default(false)
+  lastLoginAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  accounts      Account[]
+  sessions      Session[]
+  memberships   OrganisationMembership[]
+  person        Person?
+  createdCharts Chart[]                  @relation("ChartCreator")
+  snapshots     Snapshot[]               @relation("SnapshotCreator")
+  scenarios     Scenario[]               @relation("ScenarioCreator")
+  scenarioChanges ScenarioChange[]       @relation("ScenarioChangeCreator")
+  shareLinks    ShareLink[]              @relation("ShareLinkCreator")
+  auditEvents   AuditEvent[]
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model OrganisationMembership {
+  id             String    @id @default(uuid())
+  userId         String
+  organisationId String
+  role           OrgRole
+  invitedAt      DateTime?
+  acceptedAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organisationId])
+  @@index([organisationId, role])
+}
+
+// ---------------------------------------------------------------------------
+// Organisational core
+// ---------------------------------------------------------------------------
+
+model Person {
+  id              String       @id @default(uuid())
+  organisationId  String
+  userId          String?      @unique
+  firstName       String
+  lastName        String
+  displayName     String
+  preferredName   String?
+  email                 String?
+  phone                 String?
+  profilePhotoUrl       String?
+  profileLinkUrl        String?
+  profileLinkUsername   String?
+  profileLinkProvider   ProfileLinkProvider?
+  bio                   String?
+  status                PersonStatus @default(ACTIVE)
+  startDate       DateTime?
+  endDate         DateTime?
+  employeeId      String?
+  holidayAllowanceDays Float?
+  holidayRemainingDays Float?
+  costCentre      String?
+  workingPattern  String?
+  ftePercent      Int          @default(100)
+  nextReviewDate  DateTime?
+  probationEndDate DateTime?
+  contractEndDate DateTime?
+  noticePeriodDays Int?
+  metadata        Json         @default("{}")
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+
+  organisation       Organisation        @relation(fields: [organisationId], references: [id])
+  user               User?               @relation(fields: [userId], references: [id])
+  assignments        Assignment[]
+  customFieldValues  CustomFieldValue[]
+  externalIdentities ExternalIdentity[]
+  groupMemberships   PersonGroupMembership[]
+
+  @@unique([organisationId, email])
+  @@unique([organisationId, employeeId])
+  @@index([organisationId, status])
+  @@index([organisationId, displayName])
+  @@index([organisationId, lastName, firstName])
+  @@index([organisationId, deletedAt])
+}
+
+model OrgGroup {
+  id             String       @id @default(uuid())
+  organisationId String
+  name           String
+  slug           String
+  kind           OrgGroupKind @default(TEAM)
+  colour         String?
+  description    String?
+  isSystem       Boolean      @default(false)
+  sortOrder      Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
+
+  organisation Organisation             @relation(fields: [organisationId], references: [id])
+  memberships  PersonGroupMembership[]
+
+  @@unique([organisationId, slug])
+  @@index([organisationId, kind])
+}
+
+model PersonGroupMembership {
+  id             String   @id @default(uuid())
+  organisationId String
+  personId       String
+  groupId        String
+  createdAt      DateTime @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  person       Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
+  group        OrgGroup     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([personId, groupId])
+  @@index([organisationId, groupId])
+}
+
+model Position {
+  id              String           @id @default(uuid())
+  organisationId  String
+  title           String
+  code            String?
+  departmentId    String?
+  locationId      String?
+  positionType    PositionType     @default(SINGLE)
+  employmentType  EmploymentType   @default(FULL_TIME)
+  status          PositionStatus   @default(ACTIVE)
+  plannedHireDate DateTime?
+  headcount       Int              @default(1)
+  sortOrder       Int?
+  metadata        Json             @default("{}")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+
+  organisation           Organisation            @relation(fields: [organisationId], references: [id])
+  department             Department?             @relation(fields: [departmentId], references: [id])
+  location               Location?               @relation(fields: [locationId], references: [id])
+  assignments            Assignment[]
+  subordinateOf          ReportingRelationship[] @relation("SubordinatePosition")
+  managerOf              ReportingRelationship[] @relation("ManagerPosition")
+  headedDepartments      Department[]            @relation("DepartmentHead")
+  rootOfCharts           Chart[]
+  customFieldValues      CustomFieldValue[]
+  externalIdentities     ExternalIdentity[]
+
+  @@unique([organisationId, code])
+  @@index([organisationId, status])
+  @@index([organisationId, departmentId])
+  @@index([organisationId, locationId])
+  @@index([organisationId, title])
+  @@index([organisationId, deletedAt])
+}
+
+model Assignment {
+  id                   String         @id @default(uuid())
+  organisationId       String
+  personId             String
+  positionId           String
+  assignmentType       AssignmentType @default(PERMANENT)
+  startDate            DateTime
+  endDate              DateTime?
+  isPrimary            Boolean        @default(true)
+  allocationPercentage Int            @default(100)
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  deletedAt            DateTime?
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  person       Person       @relation(fields: [personId], references: [id])
+  position     Position     @relation(fields: [positionId], references: [id])
+
+  @@index([positionId, endDate])
+  @@index([personId, endDate])
+  @@index([organisationId, isPrimary])
+}
+
+model ReportingRelationship {
+  id                     String           @id @default(uuid())
+  organisationId         String
+  subordinatePositionId  String
+  managerPositionId      String
+  relationshipType       RelationshipType @default(PRIMARY)
+  isPrimary              Boolean          @default(true)
+  effectiveFrom          DateTime         @default(now())
+  effectiveTo            DateTime?
+  label                  String?
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  deletedAt              DateTime?
+
+  organisation         Organisation @relation(fields: [organisationId], references: [id])
+  subordinatePosition  Position     @relation("SubordinatePosition", fields: [subordinatePositionId], references: [id])
+  managerPosition      Position     @relation("ManagerPosition", fields: [managerPositionId], references: [id])
+
+  @@index([organisationId, effectiveTo])
+  @@index([subordinatePositionId, relationshipType])
+  @@index([managerPositionId, relationshipType])
+  @@index([organisationId, isPrimary, effectiveTo])
+}
+
+model Department {
+  id                 String    @id @default(uuid())
+  organisationId     String
+  name               String
+  code               String?
+  parentDepartmentId String?
+  colour             String?
+  headPositionId     String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+
+  organisation     Organisation @relation(fields: [organisationId], references: [id])
+  parentDepartment Department?  @relation("DepartmentTree", fields: [parentDepartmentId], references: [id])
+  childDepartments Department[] @relation("DepartmentTree")
+  headPosition     Position?    @relation("DepartmentHead", fields: [headPositionId], references: [id])
+  positions        Position[]
+  externalIdentities ExternalIdentity[]
+
+  @@unique([organisationId, code])
+  @@index([organisationId, name])
+  @@index([parentDepartmentId])
+}
+
+model Location {
+  id             String    @id @default(uuid())
+  organisationId String
+  name           String
+  country        String?
+  city           String?
+  address        String?
+  timezone       String?
+  latitude       Decimal?  @db.Decimal(9, 6)
+  longitude      Decimal?  @db.Decimal(9, 6)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  organisation       Organisation       @relation(fields: [organisationId], references: [id])
+  positions          Position[]
+  externalIdentities ExternalIdentity[]
+
+  @@index([organisationId, name])
+}
+
+// ---------------------------------------------------------------------------
+// Charts
+// ---------------------------------------------------------------------------
+
+model Chart {
+  id             String          @id @default(uuid())
+  organisationId String
+  name           String
+  description    String          @default("")
+  rootPositionId String?
+  scenarioId     String?
+  isDefault      Boolean         @default(false)
+  visibility     ChartVisibility @default(ORGANISATION)
+  createdById    String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
+
+  organisation  Organisation        @relation(fields: [organisationId], references: [id])
+  rootPosition  Position?           @relation(fields: [rootPositionId], references: [id])
+  scenario      Scenario?           @relation(fields: [scenarioId], references: [id])
+  createdBy     User                @relation("ChartCreator", fields: [createdById], references: [id])
+  configuration ChartConfiguration?
+  shareLinks    ShareLink[]
+
+  @@index([organisationId, isDefault])
+}
+
+model ChartConfiguration {
+  id                    String          @id @default(uuid())
+  chartId               String          @unique
+  layoutDirection       LayoutDirection @default(TOP_DOWN)
+  nodeStyle             NodeStyle       @default(STANDARD)
+  showPhotos            Boolean         @default(true)
+  showVacancies         Boolean         @default(true)
+  showSecondaryLines    Boolean         @default(true)
+  showDirectReportCount Boolean         @default(true)
+  showLocation          Boolean         @default(true)
+  visibleFields         String[]        @default([])
+  defaultFilters        Json            @default("{}")
+  collapsedPositionIds  String[]        @default([])
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  chart Chart @relation(fields: [chartId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Scenarios and history
+// ---------------------------------------------------------------------------
+
+model Snapshot {
+  id             String         @id @default(uuid())
+  organisationId String
+  name           String
+  description    String         @default("")
+  capturedAt     DateTime       @default(now())
+  createdById    String?
+  source         SnapshotSource
+  changeCount    Int            @default(0)
+  payload        Json
+  createdAt      DateTime       @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  createdBy    User?        @relation("SnapshotCreator", fields: [createdById], references: [id])
+  scenarios    Scenario[]
+
+  @@index([organisationId, capturedAt])
+}
+
+model Scenario {
+  id             String         @id @default(uuid())
+  organisationId String
+  name           String
+  description    String         @default("")
+  baseSnapshotId String
+  status         ScenarioStatus @default(DRAFT)
+  createdById    String
+  appliedAt      DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  deletedAt      DateTime?
+
+  organisation Organisation     @relation(fields: [organisationId], references: [id])
+  baseSnapshot Snapshot         @relation(fields: [baseSnapshotId], references: [id])
+  createdBy    User             @relation("ScenarioCreator", fields: [createdById], references: [id])
+  changes      ScenarioChange[]
+  charts       Chart[]
+
+  @@index([organisationId, status])
+}
+
+model ScenarioChange {
+  id         String             @id @default(uuid())
+  scenarioId String
+  sequence   Int
+  changeType ScenarioChangeType
+  entityType String
+  entityId   String?
+  payload    Json
+  createdById String
+  createdAt  DateTime           @default(now())
+
+  scenario  Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  createdBy User     @relation("ScenarioChangeCreator", fields: [createdById], references: [id])
+
+  @@unique([scenarioId, sequence])
+  @@index([scenarioId, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Custom fields
+// ---------------------------------------------------------------------------
+
+model CustomFieldDefinition {
+  id             String            @id @default(uuid())
+  organisationId String
+  key            String
+  label          String
+  fieldType      CustomFieldType
+  appliesTo      CustomFieldTarget
+  options        String[]          @default([])
+  visibility     FieldVisibility   @default(INTERNAL)
+  isPrivate      Boolean           @default(false)
+  isSearchable   Boolean           @default(false)
+  isFilterable   Boolean           @default(false)
+  isRequired     Boolean           @default(false)
+  sortOrder      Int               @default(0)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  deletedAt      DateTime?
+
+  organisation Organisation       @relation(fields: [organisationId], references: [id])
+  values       CustomFieldValue[]
+
+  @@unique([organisationId, appliesTo, key])
+}
+
+model CustomFieldValue {
+  id           String     @id @default(uuid())
+  definitionId String
+  personId     String?
+  positionId   String?
+  value        Json
+  source       DataSource @default(LOCAL)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  definition CustomFieldDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  person     Person?               @relation(fields: [personId], references: [id])
+  position   Position?             @relation(fields: [positionId], references: [id])
+
+  @@index([definitionId])
+  @@index([personId])
+  @@index([positionId])
+}
+
+// ---------------------------------------------------------------------------
+// Integrations
+// ---------------------------------------------------------------------------
+
+model Connector {
+  id                   String            @id @default(uuid())
+  organisationId       String
+  provider             ConnectorProvider
+  name                 String
+  status               ConnectorStatus   @default(NOT_CONFIGURED)
+  config               Json              @default("{}")
+  encryptedCredentials Bytes?
+  syncCursor           String?
+  syncSchedule         String?
+  lastSyncAt           DateTime?
+  lastSuccessfulSyncAt DateTime?
+  isReadOnly           Boolean           @default(true)
+  autoDeactivate       Boolean           @default(false)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  organisation Organisation  @relation(fields: [organisationId], references: [id])
+  fieldMappings FieldMapping[]
+  syncJobs      SyncJob[]
+
+  @@index([organisationId, provider])
+}
+
+model ExternalIdentity {
+  id               String             @id @default(uuid())
+  organisationId   String
+  provider         ConnectorProvider
+  externalId       String
+  entityType       ExternalEntityType
+  personId         String?
+  positionId       String?
+  departmentId     String?
+  locationId       String?
+  lastSeenAt       DateTime
+  sourceModifiedAt DateTime?
+  syncHash         String
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  person       Person?      @relation(fields: [personId], references: [id])
+  position     Position?    @relation(fields: [positionId], references: [id])
+  department   Department?  @relation(fields: [departmentId], references: [id])
+  location     Location?    @relation(fields: [locationId], references: [id])
+
+  @@unique([organisationId, provider, entityType, externalId])
+  @@index([personId])
+  @@index([positionId])
+}
+
+model FieldMapping {
+  id          String             @id @default(uuid())
+  connectorId String
+  entityType  ExternalEntityType
+  sourceField String
+  targetField String
+  transform   String?
+  isRequired  Boolean            @default(false)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  connector Connector @relation(fields: [connectorId], references: [id], onDelete: Cascade)
+
+  @@unique([connectorId, entityType, sourceField])
+}
+
+model SyncJob {
+  id               String      @id @default(uuid())
+  organisationId   String
+  connectorId      String
+  status           SyncStatus  @default(QUEUED)
+  trigger          SyncTrigger
+  mode             SyncMode    @default(PREVIEW)
+  correlationId    String
+  startedAt        DateTime?
+  finishedAt       DateTime?
+  createdCount     Int         @default(0)
+  updatedCount     Int         @default(0)
+  unchangedCount   Int         @default(0)
+  deactivatedCount Int         @default(0)
+  errorCount       Int         @default(0)
+  cursorBefore     String?
+  cursorAfter      String?
+  error            Json?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  connector    Connector    @relation(fields: [connectorId], references: [id])
+  records      SyncRecord[]
+
+  @@index([organisationId, createdAt])
+  @@index([connectorId, createdAt])
+  @@index([correlationId])
+}
+
+model SyncRecord {
+  id         String           @id @default(uuid())
+  syncJobId  String
+  entityType ExternalEntityType
+  externalId String
+  action     SyncRecordAction
+  before     Json?
+  after      Json?
+  message    String?
+  createdAt  DateTime         @default(now())
+
+  syncJob SyncJob @relation(fields: [syncJobId], references: [id], onDelete: Cascade)
+
+  @@index([syncJobId, action])
+}
+
+model FieldProvenance {
+  id                   String     @id @default(uuid())
+  organisationId       String
+  entityType           String
+  entityId             String
+  fieldName            String
+  source               DataSource
+  lastSyncedAt         DateTime
+  isLocallyOverridden  Boolean    @default(false)
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+
+  @@unique([organisationId, entityType, entityId, fieldName])
+}
+
+model ImportJob {
+  id             String          @id @default(uuid())
+  organisationId String
+  fileName       String
+  mimeType       String
+  status         ImportJobStatus @default(UPLOADED)
+  columnMap      Json            @default("{}")
+  createdById    String
+  correlationId  String
+  createdCount   Int             @default(0)
+  updatedCount   Int             @default(0)
+  errorCount     Int             @default(0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  rows         ImportRow[]
+
+  @@index([organisationId, createdAt])
+}
+
+model ImportRow {
+  id          String          @id @default(uuid())
+  importJobId String
+  rowNumber   Int
+  raw         Json
+  status      ImportRowStatus @default(PENDING)
+  errors      Json?
+  createdAt   DateTime        @default(now())
+
+  importJob ImportJob @relation(fields: [importJobId], references: [id], onDelete: Cascade)
+
+  @@index([importJobId, status])
+}
+
+// ---------------------------------------------------------------------------
+// Sharing and audit
+// ---------------------------------------------------------------------------
+
+model ShareLink {
+  id                    String          @id @default(uuid())
+  organisationId        String
+  chartId               String
+  tokenHash             String          @unique
+  passwordHash          String?
+  expiresAt             DateTime?
+  permissions           SharePermission @default(VIEW_ONLY)
+  allowedFields         String[]        @default([])
+  allowEmbed            Boolean         @default(false)
+  allowedFrameAncestors String[]        @default([])
+  viewCount             Int             @default(0)
+  lastViewedAt          DateTime?
+  revokedAt             DateTime?
+  createdById           String
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  chart        Chart        @relation(fields: [chartId], references: [id])
+  createdBy    User         @relation("ShareLinkCreator", fields: [createdById], references: [id])
+
+  @@index([organisationId, chartId])
+}
+
+model AuditEvent {
+  id            String      @id @default(uuid())
+  organisationId String
+  actorId       String?
+  actorType     ActorType
+  action        AuditAction
+  entityType    String
+  entityId      String?
+  previousState Json?
+  newState      Json?
+  source        DataSource  @default(LOCAL)
+  correlationId String?
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime    @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  actor        User?        @relation(fields: [actorId], references: [id])
+
+  @@index([organisationId, createdAt])
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([correlationId])
+}
