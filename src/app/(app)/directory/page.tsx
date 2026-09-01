@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectItem } from '@/components/ui/select';
 import { initials } from '@/lib/utils';
 
 interface DirectoryPerson {
@@ -102,18 +103,18 @@ export default function DirectoryPage() {
           service key, we read the configured table over REST.
         </p>
         <div className="flex flex-wrap items-end gap-2">
-          <select
-            className="h-9 min-w-[16rem] rounded-md border border-[var(--border)] bg-white/8 px-2 text-sm"
+          <Select
+            className="min-w-[16rem]"
             value={selected}
-            onChange={(event) => setConnectorId(event.target.value)}
+            onValueChange={setConnectorId}
           >
-            {supabaseSources.length === 0 ? <option value="">No Supabase connector</option> : null}
+            {supabaseSources.length === 0 ? <SelectItem value="">No Supabase connector</SelectItem> : null}
             {supabaseSources.map((source) => (
-              <option key={source.id} value={source.id}>
+              <SelectItem key={source.id} value={source.id}>
                 {source.name} · {source.status}
-              </option>
+              </SelectItem>
             ))}
-          </select>
+          </Select>
           <Button
             variant="outline"
             disabled={!selected || pull.isPending}

@@ -6,6 +6,7 @@ import { Download, Focus, Printer, Search, Share2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectItem } from '@/components/ui/select';
 import type { ChartFilter } from '@/domain/org/types';
 import { activeFilterCount } from '@/domain/chart/filters';
 import type { ChartSurface } from '@/components/chart/chart-surface';
@@ -170,73 +171,69 @@ export function ChartToolbar({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 px-4 pb-3">
-        <select
-          className="soft-select"
+        <Select
           value={filters.groupIds?.[0] ?? ''}
-          onChange={(event) =>
+          onValueChange={(value) =>
             onFilters({
               ...filters,
-              groupIds: event.target.value ? [event.target.value] : undefined,
+              groupIds: value ? [value] : undefined,
             })
           }
         >
-          <option value="">All groups</option>
+          <SelectItem value="">All groups</SelectItem>
           {groups.map((group) => (
-            <option key={group.id} value={group.id}>
+            <SelectItem key={group.id} value={group.id}>
               {group.name}
-            </option>
+            </SelectItem>
           ))}
-        </select>
-        <select
-          className="soft-select"
+        </Select>
+        <Select
           value={filters.departmentIds?.[0] ?? ''}
-          onChange={(event) =>
+          onValueChange={(value) =>
             onFilters({
               ...filters,
-              departmentIds: event.target.value ? [event.target.value] : undefined,
+              departmentIds: value ? [value] : undefined,
             })
           }
         >
-          <option value="">All departments</option>
+          <SelectItem value="">All departments</SelectItem>
           {departments.map((dept) => (
-            <option key={dept.id} value={dept.id}>
+            <SelectItem key={dept.id} value={dept.id}>
               {dept.name}
-            </option>
+            </SelectItem>
           ))}
-        </select>
-        <select
-          className="soft-select"
+        </Select>
+        <Select
           value={filters.locationIds?.[0] ?? ''}
-          onChange={(event) =>
+          onValueChange={(value) =>
             onFilters({
               ...filters,
-              locationIds: event.target.value ? [event.target.value] : undefined,
+              locationIds: value ? [value] : undefined,
             })
           }
         >
-          <option value="">All locations</option>
+          <SelectItem value="">All locations</SelectItem>
           {locations.map((location) => (
-            <option key={location.id} value={location.id}>
+            <SelectItem key={location.id} value={location.id}>
               {location.name}
-            </option>
+            </SelectItem>
           ))}
-        </select>
-        <select
-          className="soft-select"
+        </Select>
+        <Select
           value={filters.positionStatuses?.[0] ?? ''}
-          onChange={(event) =>
+          onValueChange={(value) =>
             onFilters({
               ...filters,
-              positionStatuses: event.target.value
-                ? [event.target.value as NonNullable<ChartFilter['positionStatuses']>[number]]
+              positionStatuses: value
+                ? [value as NonNullable<ChartFilter['positionStatuses']>[number]]
                 : undefined,
             })
           }
         >
-          <option value="">All positions</option>
-          <option value="VACANT">Vacancies</option>
-          <option value="ACTIVE">Active</option>
-        </select>
+          <SelectItem value="">All positions</SelectItem>
+          <SelectItem value="VACANT">Vacancies</SelectItem>
+          <SelectItem value="ACTIVE">Active</SelectItem>
+        </Select>
         {count > 0 ? (
           <Button variant="ghost" size="sm" onClick={() => onFilters({})}>
             Clear all filters
@@ -286,19 +283,15 @@ export function ChartToolbar({
               {mode === 'LIVE' ? 'Live mode' : 'Planning mode'}
             </Button>
             {mode === 'PLANNING' ? (
-              <select
-                className="soft-select"
-                value={scenarioId ?? ''}
-                onChange={(event) => onScenario(event.target.value || null)}
-              >
-                <option value="">Choose scenario</option>
+              <Select value={scenarioId ?? ''} onValueChange={(value) => onScenario(value || null)}>
+                <SelectItem value="">Choose scenario</SelectItem>
                 {scenarios.map((scenario) => (
-                  <option key={scenario.id} value={scenario.id}>
+                  <SelectItem key={scenario.id} value={scenario.id}>
                     {scenario.name}
                     {scenario.changeCount ? ` (${scenario.changeCount})` : ''}
-                  </option>
+                  </SelectItem>
                 ))}
-              </select>
+              </Select>
             ) : null}
           </>
         ) : null}

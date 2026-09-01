@@ -37,6 +37,27 @@
 
 * {
   border-color: var(--border);
+  scrollbar-width: thin;
+  scrollbar-color: #7c3aed #1a0538;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: rgba(18, 0, 36, 0.72);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #7c3aed, #22d3ee);
+  border-radius: 999px;
+  border: 2px solid rgba(18, 0, 36, 0.85);
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #8b5cf6, #67e8f9);
 }
 
 html,
@@ -94,11 +115,19 @@ body {
   display: none;
 }
 
+select,
+select option,
+select optgroup {
+  color-scheme: dark;
+  background-color: #1c0840;
+  color: #f8f5ff;
+}
+
 select.soft-select {
   height: 2.25rem;
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: var(--muted);
+  background: rgba(28, 8, 62, 0.78);
   color: var(--foreground);
   padding: 0 0.9rem;
   font-size: 0.8125rem;
@@ -107,6 +136,12 @@ select.soft-select {
 select.soft-select:focus {
   outline: none;
   box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.35);
+}
+
+select option:checked,
+select option:hover {
+  background-color: #22d3ee;
+  color: #071018;
 }
 
 @media print {

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectItem } from '@/components/ui/select';
 
 interface Group {
   id: string;
@@ -70,16 +71,12 @@ export default function GroupsPage() {
           </div>
           <div>
             <Label>Kind</Label>
-            <select
-              className="h-9 rounded-md border border-[var(--border)] bg-white/8 px-2 text-sm"
-              value={kind}
-              onChange={(event) => setKind(event.target.value as typeof kind)}
-            >
-              <option value="TEAM">Team</option>
-              <option value="COHORT">Cohort</option>
-              <option value="GOVERNANCE">Governance</option>
-              <option value="FUNCTION">Function</option>
-            </select>
+            <Select value={kind} onValueChange={(value) => setKind(value as typeof kind)}>
+              <SelectItem value="TEAM">Team</SelectItem>
+              <SelectItem value="COHORT">Cohort</SelectItem>
+              <SelectItem value="GOVERNANCE">Governance</SelectItem>
+              <SelectItem value="FUNCTION">Function</SelectItem>
+            </Select>
           </div>
           <Button disabled={!name.trim() || create.isPending} onClick={() => create.mutate()}>
             Create
