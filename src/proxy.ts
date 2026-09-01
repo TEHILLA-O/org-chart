@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import type { NextRequest } from 'next/server';
 
 function withCsp(response: NextResponse, pathname: string) {
   const frameAncestors = pathname.startsWith('/embed') ? '*' : "'none'";
@@ -20,7 +20,7 @@ function withCsp(response: NextResponse, pathname: string) {
   return response;
 }
 
-export const proxy = auth((request) => {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (pathname === '/login' || pathname.startsWith('/login/')) {
@@ -28,7 +28,7 @@ export const proxy = auth((request) => {
   }
 
   return withCsp(NextResponse.next(), pathname);
-});
+}
 
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
