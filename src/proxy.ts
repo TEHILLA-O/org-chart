@@ -22,20 +22,8 @@ function withCsp(response: NextResponse, pathname: string) {
 
 export const proxy = auth((request) => {
   const { pathname } = request.nextUrl;
-  const isPublic =
-    pathname.startsWith('/login') ||
-    pathname.startsWith('/api/auth') ||
-    pathname.startsWith('/embed') ||
-    pathname.startsWith('/share') ||
-    pathname.startsWith('/api/v1/public');
 
-  if (!request.auth && !isPublic) {
-    const login = new URL('/login', request.nextUrl.origin);
-    login.searchParams.set('callbackUrl', pathname);
-    return withCsp(NextResponse.redirect(login), pathname);
-  }
-
-  if (request.auth && pathname === '/login') {
+  if (pathname === '/login' || pathname.startsWith('/login/')) {
     return withCsp(NextResponse.redirect(new URL('/dashboard', request.nextUrl.origin)), pathname);
   }
 

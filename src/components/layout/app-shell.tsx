@@ -2,9 +2,7 @@
 
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { signOut } from 'next-auth/react';
 import { AppSidebar } from '@/components/layout/sidebar';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export function AppShell({
@@ -30,11 +28,8 @@ export function AppShell({
       />
       <div className="flex min-w-0 flex-1 flex-col">
         {isChart ? null : (
-          <header className="no-print flex h-14 shrink-0 items-center justify-between px-6">
+          <header className="no-print flex h-14 shrink-0 items-center px-6">
             <p className="text-sm text-[var(--muted-foreground)]">Northstar Holdings</p>
-            <Button variant="outline" size="sm" onClick={() => signOut({ callbackUrl: '/login' })}>
-              Sign out
-            </Button>
           </header>
         )}
         <main className={cn('min-h-0 flex-1 overflow-auto', isChart && 'overflow-hidden p-0')}>

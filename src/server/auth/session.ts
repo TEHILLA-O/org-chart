@@ -1,6 +1,6 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/db';
-import { ForbiddenError, UnauthorizedError } from '@/lib/errors';
+import { ForbiddenError } from '@/lib/errors';
 import { type Actor, type PermissionAction, assertCan } from '@/domain/permissions/policy';
 import type { OrgRole } from '@prisma/client';
 
@@ -12,19 +12,43 @@ export interface SessionContext {
   actor: Actor;
 }
 
-export async function requireSession(): Promise<{ userId: string; email: string }> {
-  const session = await auth();
-  if (!session?.user?.id) {
-    throw new UnauthorizedError();
+async function guestContext(): Promise<SessionContext> {
+  const membership =
+    (await prisma.organisationMembership.findFirst({
+      where: { role: 'OWNER' },
+      orderBy: { createdAt: 'asc' },
+      include: { user: { select: { email: true, isPlatformAdmin: true } } },
+    })) ??
+    (await prisma.organisationMembership.findFirst({
+      orderBy: { createdAt: 'asc' },
+      include: { user: { select: { email: true, isPlatformAdmin: true } } },
+    }));
+
+  if (!membership) {
+    throw new ForbiddenError('No organisation is set up yet.');
   }
-  return { userId: session.user.id, email: session.user.email ?? '' };
+
+  const actor: Actor = {
+    userId: membership.userId,
+    organisationId: membership.organisationId,
+    role: membership.role,
+    isPlatformAdmin: membership.user.isPlatformAdmin,
+  };
+
+  return {
+    userId: membership.userId,
+    email: membership.user.email,
+    organisationId: membership.organisationId,
+    role: membership.role,
+    actor,
+  };
 }
 
-export async function requireOrgContext(
-  organisationId?: string,
-  action: PermissionAction = 'org:read',
+async function contextFromSession(
+  session: { userId: string; email: string },
+  organisationId: string | undefined,
+  action: PermissionAction,
 ): Promise<SessionContext> {
-  const session = await requireSession();
   const membership = await prisma.organisationMembership.findFirst({
     where: organisationId
       ? { userId: session.userId, organisationId }
@@ -53,4 +77,31 @@ export async function requireOrgContext(
     role: membership.role,
     actor,
   };
+}
+
+export async function requireSession(): Promise<{ userId: string; email: string }> {
+  const session = await auth();
+  if (session?.user?.id) {
+    return { userId: session.user.id, email: session.user.email ?? '' };
+  }
+  const guest = await guestContext();
+  return { userId: guest.userId, email: guest.email };
+}
+
+export async function requireOrgContext(
+  organisationId?: string,
+  action: PermissionAction = 'org:read',
+): Promise<SessionContext> {
+  const session = await auth();
+  if (session?.user?.id) {
+    return contextFromSession(
+      { userId: session.user.id, email: session.user.email ?? '' },
+      organisationId,
+      action,
+    );
+  }
+
+  const guest = await guestContext();
+  assertCan(guest.actor, action);
+  return guest;
 }
