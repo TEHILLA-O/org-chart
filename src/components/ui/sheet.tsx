@@ -18,7 +18,7 @@ export function SheetContent({
       <SheetPrimitive.Overlay className="fixed inset-0 z-40 bg-black/20" />
       <SheetPrimitive.Content
         className={cn(
-          'fixed z-50 flex h-full w-[min(26rem,100%)] flex-col border-[var(--border)] bg-white shadow-[0_20px_60px_rgba(23,20,31,0.18)]',
+          'fixed z-50 flex h-full w-[min(26rem,100%)] flex-col border-white/12 bg-[#1a0538]/94 text-white shadow-[0_20px_60px_rgba(6,0,22,0.45)] backdrop-blur-xl',
           side === 'right' ? 'top-0 right-0 rounded-l-3xl border-l' : 'top-0 left-0 rounded-r-3xl border-r',
           className,
         )}

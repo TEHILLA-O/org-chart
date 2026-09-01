@@ -125,7 +125,7 @@ export default function OkrsPage() {
           <div>
             <Label>Owner</Label>
             <select
-              className="h-9 w-full rounded-md border border-[var(--border)] bg-white px-2 text-sm"
+              className="h-9 w-full rounded-md border border-[var(--border)] bg-white/8 px-2 text-sm"
               value={ownerPersonId}
               onChange={(event) => setOwnerPersonId(event.target.value)}
             >
@@ -189,7 +189,7 @@ export default function OkrsPage() {
                     </div>
                   </div>
                   <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--border)]">
-                    <div className="h-full rounded-full bg-[#2f5d62]" style={{ width: `${pct}%` }} />
+                    <div className="h-full rounded-full bg-[#22d3ee]" style={{ width: `${pct}%` }} />
                   </div>
                 </li>
               );

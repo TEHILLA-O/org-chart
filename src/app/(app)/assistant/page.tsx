@@ -78,12 +78,12 @@ export default function AssistantPage() {
         </p>
       </div>
 
-      <Card className="border-[#c9a227]/40 bg-[#fbf6e8]">
+      <Card className="border-[#e879f9]/35 bg-[#e879f9]/10">
         <div className="flex items-start gap-3">
           {canAsk ? (
-            <Sparkles className="mt-0.5 h-4 w-4 text-[#6a4f00]" />
+            <Sparkles className="mt-0.5 h-4 w-4 text-[#f5d0fe]" />
           ) : (
-            <Lock className="mt-0.5 h-4 w-4 text-[#6a4f00]" />
+            <Lock className="mt-0.5 h-4 w-4 text-[#f5d0fe]" />
           )}
           <div>
             <p className="font-medium">
@@ -140,7 +140,7 @@ export default function AssistantPage() {
           <p className="text-sm text-[var(--muted-foreground)]">{lookup.data.message}</p>
         ) : null}
         {ask.data ? (
-          <div className="rounded-2xl bg-[#f6f4ef] p-4 text-sm leading-relaxed whitespace-pre-wrap">
+          <div className="rounded-2xl bg-white/8 p-4 text-sm leading-relaxed whitespace-pre-wrap">
             {ask.data.answer}
           </div>
         ) : null}

@@ -161,7 +161,7 @@ export default function PeoplePage() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={draft.photoUrl} alt="" className="h-20 w-20 rounded-full object-cover" />
               ) : (
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#2f5d62] text-lg font-semibold text-[#f7f4ec]">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#22d3ee] text-lg font-semibold text-[#071018]">
                   {initials(draft.displayName || 'New Person')}
                 </div>
               )}
@@ -268,7 +268,7 @@ export default function PeoplePage() {
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={person.profilePhotoUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
                       ) : (
-                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2f5d62] text-[10px] font-semibold text-[#f7f4ec]">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#22d3ee] text-[10px] font-semibold text-[#071018]">
                           {initials(person.displayName)}
                         </span>
                       )}

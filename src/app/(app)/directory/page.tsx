@@ -103,7 +103,7 @@ export default function DirectoryPage() {
         </p>
         <div className="flex flex-wrap items-end gap-2">
           <select
-            className="h-9 min-w-[16rem] rounded-md border border-[var(--border)] bg-white px-2 text-sm"
+            className="h-9 min-w-[16rem] rounded-md border border-[var(--border)] bg-white/8 px-2 text-sm"
             value={selected}
             onChange={(event) => setConnectorId(event.target.value)}
           >
@@ -153,7 +153,7 @@ export default function DirectoryPage() {
               <tr key={person.id} className="border-t border-[var(--border)]">
                 <td className="px-4 py-2">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2f5d62] text-[10px] font-semibold text-[#f7f4ec]">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#22d3ee] text-[10px] font-semibold text-[#071018]">
                       {initials(person.displayName)}
                     </span>
                     <div>

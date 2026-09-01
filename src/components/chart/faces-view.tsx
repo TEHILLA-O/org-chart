@@ -40,7 +40,7 @@ export function FacesView({
           <div className="mb-3 flex items-center gap-2">
             <span
               className="h-3 w-3 rounded-sm"
-              style={{ background: group.colour ?? '#2f5d62' }}
+              style={{ background: group.colour ?? '#22d3ee' }}
             />
             <h2 className="text-sm font-semibold">{group.name}</h2>
             <span className="text-xs text-[var(--muted-foreground)]">{group.nodes.length}</span>
@@ -55,11 +55,11 @@ export function FacesView({
                   type="button"
                   onClick={() => onSelect(node.id)}
                   className={cn(
-                    'overflow-hidden rounded-2xl border bg-white text-left shadow-[0_10px_24px_rgba(23,20,31,0.06)] transition-shadow hover:shadow-[0_14px_30px_rgba(23,20,31,0.1)]',
+                    'overflow-hidden rounded-2xl border bg-[rgba(28,8,62,0.72)] text-left text-white shadow-[0_10px_24px_rgba(6,0,22,0.28)] backdrop-blur-xl transition-shadow hover:shadow-[0_14px_30px_rgba(34,211,238,0.16)]',
                     selectedId === node.id
-                      ? 'border-[#2f5d62] ring-4 ring-[#2f5d62]/12'
-                      : 'border-transparent',
-                    node.isVacant && 'border-dashed border-[#c8b8a8] bg-[#fbf8f3]',
+                      ? 'border-[#22d3ee] ring-4 ring-[#22d3ee]/20'
+                      : 'border-white/12',
+                    node.isVacant && 'border-dashed border-white/30 bg-[rgba(28,8,62,0.4)]',
                   )}
                 >
                   <div className="flex flex-col items-center p-4 text-center">
@@ -74,7 +74,7 @@ export function FacesView({
                       <div
                         className={cn(
                           'flex h-16 w-16 items-center justify-center rounded-full text-lg font-semibold',
-                          node.isVacant ? 'bg-[#f4d7c8] text-[#7a3419]' : 'bg-[#2f5d62] text-[#f7f4ec]',
+                          node.isVacant ? 'bg-white/10 text-[#67e8f9]' : 'bg-[#22d3ee] text-[#071018]',
                         )}
                       >
                         {node.isVacant ? 'V' : initials(name)}
@@ -92,7 +92,7 @@ export function FacesView({
                   </div>
                   <div
                     className="h-7 w-full px-2 text-center text-[11px] leading-7 font-medium text-white"
-                    style={{ background: node.isVacant ? '#b9a898' : (node.departmentColour ?? '#2f5d62') }}
+                    style={{ background: node.isVacant ? 'rgba(255,255,255,0.18)' : (node.departmentColour ?? '#22d3ee') }}
                   >
                     <span className="block truncate">{node.departmentName ?? 'Unassigned'}</span>
                   </div>
