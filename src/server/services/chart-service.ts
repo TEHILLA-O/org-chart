@@ -11,6 +11,8 @@ import type { ChartFilter } from '@/domain/org/types';
 import { loadDefaultChart, loadOrgGroups, loadOrganisationGraph } from '@/repositories/org-repository';
 import { NotFoundError } from '@/lib/errors';
 import { loadLiveOrOverlayGraph } from '@/server/services/scenario-service';
+import { isDemoMode } from '@/demo/mode';
+import { demoPersonRecord, demoPersonSkills } from '@/demo/northstar';
 
 function redactShareNodes(nodes: ChartNodeModel[], allowedFields: readonly string[]): ChartNodeModel[] {
   const ctx = { actor: null, isShareLink: true, allowedFields };
@@ -138,25 +140,36 @@ export async function getPositionDetails(
         }))
     : [];
 
-  const identities = await prisma.externalIdentity.findMany({
-    where: {
-      organisationId,
-      OR: [{ positionId }, ...(occupant ? [{ personId: occupant.person.id }] : [])],
-    },
-  });
+  const identities = isDemoMode()
+    ? []
+    : await prisma.externalIdentity.findMany({
+        where: {
+          organisationId,
+          OR: [{ positionId }, ...(occupant ? [{ personId: occupant.person.id }] : [])],
+        },
+      });
 
   const personRecord = occupant
-    ? await prisma.person.findFirst({
-        where: { id: occupant.person.id, organisationId, deletedAt: null },
-      })
+    ? isDemoMode()
+      ? demoPersonRecord(occupant.person.id)
+      : await prisma.person.findFirst({
+          where: { id: occupant.person.id, organisationId, deletedAt: null },
+        })
     : null;
 
   const skills = occupant
-    ? await prisma.personSkill.findMany({
-        where: { organisationId, personId: occupant.person.id },
-        include: { skill: true },
-        orderBy: { skill: { name: 'asc' } },
-      })
+    ? isDemoMode()
+      ? demoPersonSkills(occupant.person.id).map((row) => ({
+          skillId: row.skillId,
+          skill: { name: row.name },
+          source: row.source,
+          locked: row.locked,
+        }))
+      : await prisma.personSkill.findMany({
+          where: { organisationId, personId: occupant.person.id },
+          include: { skill: true },
+          orderBy: { skill: { name: 'asc' } },
+        })
     : [];
 
   const groupById = new Map(groups.map((group) => [group.id, group]));

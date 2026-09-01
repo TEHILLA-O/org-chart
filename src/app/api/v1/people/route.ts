@@ -1,12 +1,22 @@
 import { apiHandler, json } from '@/server/http/handler';
 import { prisma } from '@/lib/db';
 import { CreatePersonBody, createPersonFromFields } from '@/server/services/people-service';
+import { isDemoMode } from '@/demo/mode';
+import { demoPeopleRows } from '@/demo/northstar';
 
 export const GET = apiHandler('people:read', async (ctx) => {
   const url = new URL(ctx.request.url);
   const q = url.searchParams.get('q')?.trim() ?? '';
   const take = Math.min(Number(url.searchParams.get('take') ?? '50'), 250);
   const skip = Math.max(Number(url.searchParams.get('skip') ?? '0'), 0);
+
+  if (isDemoMode()) {
+    const needle = q.toLowerCase();
+    const all = demoPeopleRows().filter((person) =>
+      needle ? person.displayName.toLowerCase().includes(needle) || (person.email ?? '').includes(needle) : true,
+    );
+    return json({ people: all.slice(skip, skip + take), total: all.length, skip, take });
+  }
 
   const people = await prisma.person.findMany({
     where: {

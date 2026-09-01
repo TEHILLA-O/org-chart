@@ -6,10 +6,15 @@ import {
   type PositionSnapshot,
   type RelationshipSnapshot,
 } from '@/domain/org/types';
+import { isDemoMode } from '@/demo/mode';
+import { demoChart, demoDashboard, demoGraph, demoGroups } from '@/demo/northstar';
 
 const notDeleted = { deletedAt: null };
 
 export async function loadOrganisationGraph(organisationId: string) {
+  if (isDemoMode()) {
+    return demoGraph();
+  }
   const [positions, people, assignments, relationships, departments, locations, memberships] = await Promise.all([
     prisma.position.findMany({
       where: { organisationId, ...notDeleted },
@@ -56,6 +61,9 @@ export async function loadOrganisationGraph(organisationId: string) {
 }
 
 export async function loadDefaultChart(organisationId: string) {
+  if (isDemoMode()) {
+    return demoChart();
+  }
   const chart = await prisma.chart.findFirst({
     where: { organisationId, isDefault: true, ...notDeleted },
     include: { configuration: true },
@@ -64,6 +72,9 @@ export async function loadDefaultChart(organisationId: string) {
 }
 
 export async function listAuditEvents(organisationId: string, take = 25) {
+  if (isDemoMode()) {
+    return demoDashboard().recentAudit.slice(0, take);
+  }
   return prisma.auditEvent.findMany({
     where: { organisationId },
     orderBy: { createdAt: 'desc' },
@@ -73,6 +84,9 @@ export async function listAuditEvents(organisationId: string, take = 25) {
 }
 
 export async function loadDashboardMetrics(organisationId: string) {
+  if (isDemoMode()) {
+    return demoDashboard();
+  }
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
@@ -224,6 +238,9 @@ function toRelationshipSnapshot(rel: {
 }
 
 export async function loadOrgGroups(organisationId: string) {
+  if (isDemoMode()) {
+    return demoGroups;
+  }
   return prisma.orgGroup.findMany({
     where: { organisationId, deletedAt: null },
     orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],

@@ -3,6 +3,7 @@ import { apiHandler, json } from '@/server/http/handler';
 import { applySuggestions, suggestForPerson } from '@/server/services/skill-service';
 import { fetchGithubLanguages } from '@/server/services/profile-link-service';
 import { prisma } from '@/lib/db';
+import { isDemoMode } from '@/demo/mode';
 
 const Body = z.object({
   linkedInText: z.string().max(4000).optional(),
@@ -12,10 +13,12 @@ const Body = z.object({
 export const POST = apiHandler('people:write', async (ctx, params) => {
   const personId = params.id ?? '';
   const body = Body.parse(await ctx.request.json().catch(() => ({})));
-  const person = await prisma.person.findFirst({
-    where: { id: personId, organisationId: ctx.organisationId, deletedAt: null },
-    select: { profileLinkProvider: true, profileLinkUsername: true },
-  });
+  const person = isDemoMode()
+    ? null
+    : await prisma.person.findFirst({
+        where: { id: personId, organisationId: ctx.organisationId, deletedAt: null },
+        select: { profileLinkProvider: true, profileLinkUsername: true },
+      });
   const githubLanguages =
     person?.profileLinkProvider === 'GITHUB' && person.profileLinkUsername
       ? await fetchGithubLanguages(person.profileLinkUsername)

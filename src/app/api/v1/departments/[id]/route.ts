@@ -1,8 +1,15 @@
 import { apiHandler, json } from '@/server/http/handler';
 import { prisma } from '@/lib/db';
 import { NotFoundError } from '@/lib/errors';
+import { isDemoMode } from '@/demo/mode';
+import { demoDepartmentDetail } from '@/demo/northstar';
 
 export const GET = apiHandler('org:read', async (ctx, params) => {
+  if (isDemoMode()) {
+    const detail = demoDepartmentDetail(params.id ?? '');
+    if (!detail) throw new NotFoundError('Department not found.');
+    return json(detail);
+  }
   const department = await prisma.department.findFirst({
     where: { id: params.id ?? '', organisationId: ctx.organisationId, deletedAt: null },
   });

@@ -5,6 +5,7 @@ import { can, type Actor } from '@/domain/permissions/policy';
 import { applyScenarioOverlay } from '@/domain/scenario/overlay';
 import { assertAcyclicPrimaryGraph } from '@/domain/org/cycle';
 import { loadLiveOrOverlayGraph, toChangeViews } from '@/server/services/scenario-service';
+import { assertWritable } from '@/demo/mode';
 
 export async function createVacancy(input: {
   organisationId: string;
@@ -19,6 +20,7 @@ export async function createVacancy(input: {
   if (!can(input.actor, 'positions:write')) {
     throw new ForbiddenError();
   }
+  assertWritable();
 
   if (input.mode === 'PLANNING') {
     return addPlannedVacancy(input);

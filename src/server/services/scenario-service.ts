@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { NotFoundError } from '@/lib/errors';
 import { applyScenarioOverlay, diffPrimaryManagers, type ScenarioChangeView } from '@/domain/scenario/overlay';
 import { loadOrganisationGraph } from '@/repositories/org-repository';
+import { isDemoMode } from '@/demo/mode';
 
 function jsonObject(value: unknown): Record<string, unknown> {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
@@ -22,6 +23,9 @@ export function toChangeViews(
 }
 
 export async function listScenarios(organisationId: string) {
+  if (isDemoMode()) {
+    return [{ id: 'scenario-demo', name: '2027 Restructure', description: 'Planning sandbox', status: 'DRAFT', changeCount: 0 }];
+  }
   const scenarios = await prisma.scenario.findMany({
     where: { organisationId, deletedAt: null },
     orderBy: { createdAt: 'desc' },
@@ -37,6 +41,18 @@ export async function listScenarios(organisationId: string) {
 }
 
 export async function loadLiveOrOverlayGraph(organisationId: string, scenarioId?: string | null) {
+  if (isDemoMode()) {
+    const live = await loadOrganisationGraph(organisationId);
+    return {
+      live,
+      graphInput: live,
+      plannedPositionIds: new Set<string>(),
+      movedPositionIds: new Set<string>(),
+      scenario: scenarioId ? { id: scenarioId, name: '2027 Restructure' } : null,
+      diff: { added: [], moved: [], addedCount: 0, movedCount: 0 },
+      changes: [],
+    };
+  }
   const live = await loadOrganisationGraph(organisationId);
   if (!scenarioId) {
     return {

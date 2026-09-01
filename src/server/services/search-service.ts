@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db';
 import { buildReportingGraph } from '@/domain/org/graph';
 import { ancestorsToExpand } from '@/domain/chart/collapse';
 import { loadOrganisationGraph } from '@/repositories/org-repository';
+import { isDemoMode } from '@/demo/mode';
 
 export interface SearchHit {
   id: string;
@@ -14,6 +15,37 @@ export interface SearchHit {
 export async function searchOrganisation(organisationId: string, query: string): Promise<SearchHit[]> {
   const q = query.trim();
   if (q.length < 2) return [];
+
+  if (isDemoMode()) {
+    const graphInput = await loadOrganisationGraph(organisationId);
+    const graph = buildReportingGraph(graphInput);
+    const needle = q.toLowerCase();
+    const hits: SearchHit[] = [];
+    for (const person of graphInput.people) {
+      if (!person.displayName.toLowerCase().includes(needle) && !(person.email ?? '').toLowerCase().includes(needle)) continue;
+      const assignment = graphInput.assignments.find((item) => item.personId === person.id && !item.endDate);
+      const position = assignment ? graph.nodes.get(assignment.positionId) : undefined;
+      hits.push({
+        id: person.id,
+        kind: 'person',
+        title: person.displayName,
+        subtitle: [position?.position.title, person.email].filter(Boolean).join(' · '),
+        positionId: assignment?.positionId ?? null,
+      });
+    }
+    for (const position of graphInput.positions) {
+      if (!position.title.toLowerCase().includes(needle)) continue;
+      const department = graphInput.departments.find((item) => item.id === position.departmentId);
+      hits.push({
+        id: position.id,
+        kind: 'position',
+        title: position.title,
+        subtitle: department?.name ?? '',
+        positionId: position.id,
+      });
+    }
+    return hits.slice(0, 20);
+  }
 
   const [people, positions, departments, locations, graphInput] = await Promise.all([
     prisma.person.findMany({

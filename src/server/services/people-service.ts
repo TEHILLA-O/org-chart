@@ -5,6 +5,7 @@ import { getCorrelationId } from '@/lib/correlation';
 import { ConflictError, ValidationAppError } from '@/lib/errors';
 import { fullName } from '@/lib/utils';
 import type { Actor } from '@/domain/permissions/policy';
+import { isDemoMode } from '@/demo/mode';
 
 export const CreatePersonBody = z.object({
   firstName: z.string().min(1).max(80),
@@ -34,6 +35,9 @@ export async function createPersonFromFields(input: {
   body: z.infer<typeof CreatePersonBody>;
 }) {
   const body = input.body;
+  if (isDemoMode()) {
+    throw new ValidationAppError('This hosted demo is read-only until a database is connected.');
+  }
   const email = body.email?.trim() ? body.email.trim() : null;
   const displayName = body.displayName?.trim() || fullName(body.firstName, body.lastName);
 

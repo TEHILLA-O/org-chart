@@ -3,13 +3,17 @@ import { prisma } from '@/lib/db';
 import { requireOrgContext } from '@/server/auth/session';
 import { listAuditEvents } from '@/repositories/org-repository';
 import { AssistantPrivacyCard } from '@/components/admin/assistant-privacy-card';
+import { isDemoMode } from '@/demo/mode';
+import { demoMembers } from '@/demo/northstar';
 
 export default async function AdministrationPage() {
   const ctx = await requireOrgContext(undefined, 'org:admin');
-  const members = await prisma.organisationMembership.findMany({
-    where: { organisationId: ctx.organisationId },
-    include: { user: { select: { email: true, name: true, lastLoginAt: true } } },
-  });
+  const members = isDemoMode()
+    ? demoMembers()
+    : await prisma.organisationMembership.findMany({
+        where: { organisationId: ctx.organisationId },
+        include: { user: { select: { email: true, name: true, lastLoginAt: true } } },
+      });
   const audit = await listAuditEvents(ctx.organisationId, 15);
 
   return (

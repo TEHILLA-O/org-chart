@@ -2,8 +2,11 @@ import { prisma } from '@/lib/db';
 import { NotFoundError } from '@/lib/errors';
 import { slugifySkill, suggestSkillsFromSources, type SkillSuggestion } from '@/domain/skills/extract';
 import type { SkillSource } from '@prisma/client';
+import { isDemoMode } from '@/demo/mode';
+import { demoPersonSkills, demoPeople, demoSkillsCatalogue, demoAssignments, demoPositions } from '@/demo/northstar';
 
 export async function listSkills(organisationId: string) {
+  if (isDemoMode()) return demoSkillsCatalogue();
   const skills = await prisma.skill.findMany({
     where: { organisationId },
     orderBy: { name: 'asc' },
@@ -18,6 +21,7 @@ export async function listSkills(organisationId: string) {
 }
 
 export async function listPersonSkills(organisationId: string, personId: string) {
+  if (isDemoMode()) return demoPersonSkills(personId);
   const rows = await prisma.personSkill.findMany({
     where: { organisationId, personId },
     include: { skill: true },
@@ -50,6 +54,13 @@ export async function addPersonSkill(input: {
   evidence?: string;
   locked?: boolean;
 }) {
+  if (isDemoMode()) {
+    const person = demoPeople.find((item) => item.id === input.personId);
+    if (!person) throw new NotFoundError('Person not found.');
+    const name = input.name.trim();
+    if (!person.skills.includes(name)) person.skills.push(name);
+    return { skillId: `${input.personId}-sk`, skill: { name }, source: input.source ?? 'MANUAL' };
+  }
   const person = await prisma.person.findFirst({
     where: { id: input.personId, organisationId: input.organisationId, deletedAt: null },
   });
@@ -75,6 +86,12 @@ export async function addPersonSkill(input: {
 }
 
 export async function removePersonSkill(organisationId: string, personId: string, skillId: string) {
+  if (isDemoMode()) {
+    const person = demoPeople.find((item) => item.id === personId);
+    if (!person) return;
+    person.skills = person.skills.filter((_, index) => `${personId}-sk-${index}` !== skillId && `${personId}-sk` !== skillId);
+    return;
+  }
   await prisma.personSkill.deleteMany({ where: { organisationId, personId, skillId } });
 }
 
@@ -83,6 +100,18 @@ export async function suggestForPerson(
   personId: string,
   extra?: { linkedInText?: string; githubLanguages?: string[] },
 ): Promise<SkillSuggestion[]> {
+  if (isDemoMode()) {
+    const person = demoPeople.find((item) => item.id === personId);
+    if (!person) throw new NotFoundError('Person not found.');
+    const assignment = demoAssignments.find((row) => row.personId === person.id);
+    const position = demoPositions.find((row) => row.id === assignment?.positionId);
+    return suggestSkillsFromSources({
+      title: position?.title,
+      bio: person.bio,
+      linkedInText: extra?.linkedInText,
+      githubLanguages: extra?.githubLanguages,
+    });
+  }
   const person = await prisma.person.findFirst({
     where: { id: personId, organisationId, deletedAt: null },
     include: {
@@ -107,6 +136,19 @@ export async function applySuggestions(input: {
   personId: string;
   suggestions: SkillSuggestion[];
 }) {
+  if (isDemoMode()) {
+    for (const suggestion of input.suggestions) {
+      await addPersonSkill({
+        organisationId: input.organisationId,
+        personId: input.personId,
+        name: suggestion.name,
+        source: suggestion.source,
+        evidence: suggestion.evidence,
+        locked: false,
+      });
+    }
+    return listPersonSkills(input.organisationId, input.personId);
+  }
   const existing = await prisma.personSkill.findMany({
     where: { organisationId: input.organisationId, personId: input.personId },
     include: { skill: true },
