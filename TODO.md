@@ -103,8 +103,7 @@ external data”).
 - [x] Filters: department, location, employment status, position status;
       composable; badges; Clear All
 - [x] Drag/reparent in LIVE mode with preview → validate → confirm → audit
-- [x] PLANNING mode shell (writes `ScenarioChange` only; full scenario UX
-      is Phase 3)
+- [x] PLANNING mode overlay (writes `ScenarioChange` only; chart reads live graph + overlay)
 - [x] Keyboard navigation for selected node (arrows along primary edges)
 - [x] Audit event listing for a change
 - [x] Persistence: reload retains reparent
@@ -117,9 +116,9 @@ is satisfied, with sample external data coming from `MICROSOFT_MOCK`.
 
 ## Phase 2 — Data connection
 
-- [ ] CSV / XLSX import wizard (upload → map → validate → preview → apply)
-- [ ] Staged import tables; idempotent apply
-- [ ] Duplicate / circular / unknown department-location detection
+- [x] CSV import wizard (upload → map → validate → preview → apply; XLSX via save-as-CSV)
+- [x] Staged import tables; apply with cycle detection
+- [x] Duplicate / circular reporting detection on import
 - [ ] `ConnectorAdapter` interface + registry
 - [ ] `MOCK_MICROSOFT_CONNECTOR` generating realistic data
 - [ ] `REAL_MICROSOFT_CONNECTOR` (Graph, read-only) behind env credentials
@@ -138,7 +137,7 @@ is satisfied, with sample external data coming from `MICROSOFT_MOCK`.
 - [ ] People directory (search, filter, sort, pagination)
 - [ ] Secondary / dotted-line managers as first-class chart edges
 - [ ] Custom fields (definition + values + privacy)
-- [ ] Scenarios: create, duplicate, overlay, compare LIVE vs SCENARIO
+- [x] Scenarios: overlay + compare LIVE vs SCENARIO (create/duplicate still later)
 - [ ] Snapshots: manual + automatic pre-sync / pre-import
 - [x] Reports: vacancy, span-of-control, department size (dashboard + reports)
 - [x] Chart surfaces: hierarchy, faces, directory, grid; spotlight; legend
@@ -150,10 +149,10 @@ is satisfied, with sample external data coming from `MICROSOFT_MOCK`.
 
 - [ ] Export CSV / XLSX / PNG / PDF (PPTX architecture only)
 - [ ] Authenticated internal sharing
-- [ ] `ShareLink` (token, expiry, optional password, allow-list fields)
-- [ ] iframe embed + CSP `frame-ancestors`
+- [x] `ShareLink` (token, expiry, optional password, allow-list fields)
+- [x] iframe embed + CSP `frame-ancestors`
 - [ ] Entra ID SSO as a production login path
-- [ ] Field-level privacy on share/embed/export surfaces
+- [x] Field-level privacy on share/embed surfaces (export already sanitised)
 
 ---
 

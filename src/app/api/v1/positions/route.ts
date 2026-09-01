@@ -24,6 +24,8 @@ const Body = z.object({
   managerPositionId: z.string().uuid(),
   departmentId: z.string().uuid().nullable().optional(),
   locationId: z.string().uuid().nullable().optional(),
+  mode: z.enum(['LIVE', 'PLANNING']).default('LIVE'),
+  scenarioId: z.string().uuid().optional(),
 });
 
 export const POST = apiHandler('positions:write', async (ctx) => {
@@ -35,6 +37,8 @@ export const POST = apiHandler('positions:write', async (ctx) => {
     managerPositionId: body.managerPositionId,
     departmentId: body.departmentId,
     locationId: body.locationId,
+    mode: body.mode,
+    scenarioId: body.scenarioId,
   });
   return json({ position }, 201);
 });

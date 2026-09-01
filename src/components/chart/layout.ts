@@ -2,8 +2,8 @@ import ELK from 'elkjs/lib/elk.bundled.js';
 import type { Edge, Node } from '@xyflow/react';
 import type { ChartEdgeModel, ChartNodeModel } from '@/domain/chart/project';
 
-export const NODE_WIDTH = 268;
-export const NODE_HEIGHT = 132;
+export const NODE_WIDTH = 220;
+export const NODE_HEIGHT = 156;
 
 export type LayoutDirection = 'TOP_DOWN' | 'LEFT_RIGHT';
 
@@ -21,8 +21,8 @@ export async function layoutChart(
     layoutOptions: {
       'elk.algorithm': 'layered',
       'elk.direction': horizontal ? 'RIGHT' : 'DOWN',
-      'elk.spacing.nodeNode': '52',
-      'elk.layered.spacing.nodeNodeBetweenLayers': '96',
+      'elk.spacing.nodeNode': '40',
+      'elk.layered.spacing.nodeNodeBetweenLayers': '88',
       'elk.edgeRouting': 'ORTHOGONAL',
     },
     children: models.map((node) => ({
@@ -59,8 +59,8 @@ export async function layoutChart(
     animated: edge.kind !== 'PRIMARY',
     style:
       edge.kind === 'PRIMARY'
-        ? { stroke: '#2f5d62', strokeWidth: 1.6 }
-        : { stroke: '#8a4b2f', strokeWidth: 1.4, strokeDasharray: '5 4' },
+        ? { stroke: '#c9c3b8', strokeWidth: 1.4 }
+        : { stroke: '#c08a62', strokeWidth: 1.3, strokeDasharray: '5 4' },
   }));
 
   return { nodes, edges };

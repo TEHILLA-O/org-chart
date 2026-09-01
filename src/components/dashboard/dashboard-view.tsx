@@ -67,8 +67,8 @@ export function DashboardView() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-xs tracking-[0.25em] text-[var(--muted-foreground)] uppercase">Northstar Holdings</p>
-        <h1 className="text-2xl font-semibold">Organisation pulse</h1>
+        <p className="text-sm text-[var(--muted-foreground)]">Northstar Holdings</p>
+        <h1 className="text-3xl font-semibold tracking-tight">Organisation pulse</h1>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {tiles.map((tile) => (

@@ -49,6 +49,7 @@ export interface ExternalPerson {
   costCentre?: string;
   startDate?: string;
   employmentType?: string;
+  skills?: string[];
 }
 
 export interface ExternalPosition {

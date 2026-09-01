@@ -10,6 +10,7 @@ export const GET = apiHandler('charts:read', async (ctx) => {
     collapsedPositionIds: collapsed,
     filters: parseFilters(url.searchParams),
     focusPositionId: url.searchParams.get('focus') ?? undefined,
+    scenarioId: url.searchParams.get('scenarioId') ?? undefined,
   });
   return json(payload);
 });

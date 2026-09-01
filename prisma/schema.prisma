@@ -145,6 +145,7 @@ enum ConnectorProvider {
   BAMBOO_HR
   RIPPLING
   GENERIC_REST
+  SUPABASE
 }
 
 enum ConnectorStatus {
@@ -195,6 +196,22 @@ enum OrgGroupKind {
   GOVERNANCE
   FUNCTION
   TEAM
+}
+
+enum SkillSource {
+  MANUAL
+  GITHUB
+  LINKEDIN
+  BIO
+  TITLE
+  DIRECTORY
+}
+
+enum ObjectiveStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
 }
 
 enum ProfileLinkProvider {
@@ -304,6 +321,10 @@ model Organisation {
   importJobs             ImportJob[]
   orgGroups              OrgGroup[]
   personGroupMemberships PersonGroupMembership[]
+  skills                 Skill[]
+  personSkills           PersonSkill[]
+  objectives             Objective[]
+  chartPresence          ChartPresence[]
 }
 
 model User {
@@ -328,6 +349,8 @@ model User {
   scenarioChanges ScenarioChange[]       @relation("ScenarioChangeCreator")
   shareLinks    ShareLink[]              @relation("ShareLinkCreator")
   auditEvents   AuditEvent[]
+  chartPresence ChartPresence[]
+  objectives    Objective[]              @relation("ObjectiveCreator")
 }
 
 model Account {
@@ -428,6 +451,8 @@ model Person {
   customFieldValues  CustomFieldValue[]
   externalIdentities ExternalIdentity[]
   groupMemberships   PersonGroupMembership[]
+  skills             PersonSkill[]
+  ownedObjectives    Objective[]
 
   @@unique([organisationId, email])
   @@unique([organisationId, employeeId])
@@ -471,6 +496,93 @@ model PersonGroupMembership {
 
   @@unique([personId, groupId])
   @@index([organisationId, groupId])
+}
+
+model Skill {
+  id             String   @id @default(uuid())
+  organisationId String
+  name           String
+  slug           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  people       PersonSkill[]
+
+  @@unique([organisationId, slug])
+  @@index([organisationId, name])
+}
+
+model PersonSkill {
+  id             String      @id @default(uuid())
+  organisationId String
+  personId       String
+  skillId        String
+  source         SkillSource @default(MANUAL)
+  evidence       String      @default("")
+  locked         Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  person       Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
+  skill        Skill        @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([personId, skillId])
+  @@index([organisationId, skillId])
+}
+
+model Objective {
+  id               String          @id @default(uuid())
+  organisationId   String
+  title            String
+  description      String          @default("")
+  cycleLabel       String          @default("")
+  status           ObjectiveStatus @default(ACTIVE)
+  ownerPersonId    String?
+  ownerPositionId  String?
+  createdById      String
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  deletedAt        DateTime?
+
+  organisation Organisation @relation(fields: [organisationId], references: [id])
+  ownerPerson  Person?      @relation(fields: [ownerPersonId], references: [id])
+  createdBy    User         @relation("ObjectiveCreator", fields: [createdById], references: [id])
+  keyResults   KeyResult[]
+
+  @@index([organisationId, status])
+  @@index([ownerPersonId])
+}
+
+model KeyResult {
+  id          String   @id @default(uuid())
+  objectiveId String
+  title       String
+  unit        String   @default("%")
+  startValue  Float    @default(0)
+  currentValue Float   @default(0)
+  targetValue Float    @default(100)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  objective Objective @relation(fields: [objectiveId], references: [id], onDelete: Cascade)
+
+  @@index([objectiveId])
+}
+
+model ChartPresence {
+  id               String   @id @default(uuid())
+  organisationId   String
+  userId           String
+  focusPositionId  String?
+  lastSeenAt       DateTime @default(now())
+
+  organisation Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organisationId, userId])
+  @@index([organisationId, lastSeenAt])
 }
 
 model Position {

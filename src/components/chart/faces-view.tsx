@@ -55,14 +55,14 @@ export function FacesView({
                   type="button"
                   onClick={() => onSelect(node.id)}
                   className={cn(
-                    'rounded-lg border bg-[var(--card)] p-4 text-left shadow-sm transition-shadow hover:shadow-md',
+                    'overflow-hidden rounded-2xl border bg-white text-left shadow-[0_10px_24px_rgba(23,20,31,0.06)] transition-shadow hover:shadow-[0_14px_30px_rgba(23,20,31,0.1)]',
                     selectedId === node.id
-                      ? 'border-[#c9a227] ring-2 ring-[#c9a227]/40'
-                      : 'border-[var(--border)]',
-                    node.isVacant && 'border-dashed',
+                      ? 'border-[#2f5d62] ring-4 ring-[#2f5d62]/12'
+                      : 'border-transparent',
+                    node.isVacant && 'border-dashed border-[#c8b8a8] bg-[#fbf8f3]',
                   )}
                 >
-                  <div className="flex flex-col items-center text-center">
+                  <div className="flex flex-col items-center p-4 text-center">
                     {occupant?.profilePhotoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
@@ -86,9 +86,15 @@ export function FacesView({
                       {node.locationName ?? '—'}
                     </p>
                     <div className="mt-2 flex flex-wrap justify-center gap-1">
-                      {node.isVacant ? <Badge tone="vacant">Vacant</Badge> : null}
+                      {node.isVacant ? <Badge tone="vacant">Open</Badge> : null}
                       {node.occupants.length > 1 ? <Badge tone="sea">Shared</Badge> : null}
                     </div>
+                  </div>
+                  <div
+                    className="h-7 w-full px-2 text-center text-[11px] leading-7 font-medium text-white"
+                    style={{ background: node.isVacant ? '#b9a898' : (node.departmentColour ?? '#2f5d62') }}
+                  >
+                    <span className="block truncate">{node.departmentName ?? 'Unassigned'}</span>
                   </div>
                 </button>
               );

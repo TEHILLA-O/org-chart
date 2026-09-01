@@ -4,7 +4,7 @@
   "private": true,
   "description": "OrgPulse - internal organisational intelligence and interactive org-chart platform",
   "engines": {
-    "node": ">=20.11.0"
+    "node": "20.x"
   },
   "scripts": {
     "dev": "next dev",

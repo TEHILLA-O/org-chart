@@ -1,10 +1,12 @@
 import { prisma } from '@/lib/db';
 import { buildReportingGraph } from '@/domain/org/graph';
 import { loadOrganisationGraph, loadOrgGroups } from '@/repositories/org-repository';
+import { completeOrgChat, isDeepSeekConfigured } from '@/server/llm/deepseek';
+import { ForbiddenError, ValidationAppError } from '@/lib/errors';
 
 export interface AssistantSettings {
   privacyReviewComplete: boolean;
-  modelConnected: false;
+  modelConnected: boolean;
 }
 
 export function readAssistantSettings(settings: unknown): AssistantSettings {
@@ -15,8 +17,56 @@ export function readAssistantSettings(settings: unknown): AssistantSettings {
       : {};
   return {
     privacyReviewComplete: assistant.privacyReviewComplete === true,
-    modelConnected: false,
+    modelConnected: isDeepSeekConfigured(),
   };
+}
+
+async function organisationFacts(organisationId: string, limit = 80) {
+  const [graphInput, groups, skills] = await Promise.all([
+    loadOrganisationGraph(organisationId),
+    loadOrgGroups(organisationId),
+    prisma.personSkill.findMany({
+      where: { organisationId },
+      include: { skill: true, person: { select: { id: true, displayName: true } } },
+      take: 400,
+    }),
+  ]);
+  const graph = buildReportingGraph(graphInput);
+  const groupName = new Map(groups.map((group) => [group.id, group.name]));
+  const skillsByPerson = new Map<string, string[]>();
+  for (const row of skills) {
+    const list = skillsByPerson.get(row.personId) ?? [];
+    list.push(row.skill.name);
+    skillsByPerson.set(row.personId, list);
+  }
+
+  const lines: string[] = [];
+  for (const node of graph.nodes.values()) {
+    const occupant = node.occupants[0];
+    if (!occupant) {
+      lines.push(`Vacant seat: ${node.position.title}.`);
+      continue;
+    }
+    const manager = node.primaryManagerId ? graph.nodes.get(node.primaryManagerId) : null;
+    const groupNames = (occupant.person.groupIds ?? [])
+      .map((id) => groupName.get(id))
+      .filter((name): name is string => Boolean(name));
+    const skillNames = skillsByPerson.get(occupant.person.id) ?? [];
+    lines.push(
+      [
+        `${occupant.person.displayName} holds ${node.position.title}.`,
+        manager
+          ? `Reports to ${manager.occupants[0]?.person.displayName ?? 'a vacant seat'} (${manager.position.title}).`
+          : 'Root seat.',
+        groupNames.length ? `Groups: ${groupNames.join(', ')}.` : null,
+        skillNames.length ? `Skills: ${skillNames.join(', ')}.` : null,
+      ]
+        .filter(Boolean)
+        .join(' '),
+    );
+    if (lines.length >= limit) break;
+  }
+  return lines.join('\n');
 }
 
 export async function lookupEmployeeBrief(organisationId: string, query: string) {
@@ -42,11 +92,7 @@ export async function lookupEmployeeBrief(organisationId: string, query: string)
 
   for (const node of graph.nodes.values()) {
     for (const occupant of node.occupants) {
-      const haystack = [
-        occupant.person.displayName,
-        occupant.person.email,
-        node.position.title,
-      ]
+      const haystack = [occupant.person.displayName, occupant.person.email, node.position.title]
         .join(' ')
         .toLowerCase();
       if (needle && !haystack.includes(needle)) continue;
@@ -82,12 +128,31 @@ export async function lookupEmployeeBrief(organisationId: string, query: string)
   return {
     settings,
     privacyLocked: !settings.privacyReviewComplete,
-    modelConnected: false,
+    modelConnected: settings.modelConnected,
     message: settings.privacyReviewComplete
-      ? 'Privacy review is marked complete, but no language model is connected. Showing stored organisation facts only.'
+      ? settings.modelConnected
+        ? 'Privacy review is complete and DeepSeek is connected.'
+        : 'Privacy review is marked complete, but no DeepSeek key is configured. Showing stored organisation facts only.'
       : 'Assistant answers stay disabled until privacy policies are cross-checked. You can still look people up from the live org chart.',
     matches: matches.slice(0, 20),
   };
+}
+
+export async function askOrganisation(organisationId: string, question: string) {
+  const organisation = await prisma.organisation.findFirst({ where: { id: organisationId } });
+  const settings = readAssistantSettings(organisation?.settings);
+  if (!settings.privacyReviewComplete) {
+    throw new ForbiddenError('Mark the assistant privacy review complete before sending org facts to a model.');
+  }
+  if (!settings.modelConnected) {
+    throw new ValidationAppError('Add DEEPSEEK_API_KEY to the environment to enable Ask.');
+  }
+  const trimmed = question.trim();
+  if (trimmed.length < 3) {
+    throw new ValidationAppError('Ask a question about the organisation.');
+  }
+  const facts = await organisationFacts(organisationId);
+  return completeOrgChat({ question: trimmed, facts });
 }
 
 export async function setPrivacyReview(organisationId: string, complete: boolean) {
@@ -100,7 +165,7 @@ export async function setPrivacyReview(organisationId: string, complete: boolean
     ...current,
     assistant: {
       privacyReviewComplete: complete,
-      modelConnected: false,
+      modelConnected: isDeepSeekConfigured(),
     },
   };
   await prisma.organisation.update({

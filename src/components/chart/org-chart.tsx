@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   Background,
+  BackgroundVariant,
   Controls,
   MiniMap,
   ReactFlow,
@@ -23,6 +24,7 @@ import { DetailsDrawer } from '@/components/chart/details-drawer';
 import { FacesView } from '@/components/chart/faces-view';
 import { DirectoryView, GridView } from '@/components/chart/roster-views';
 import { parseChartSurface, type ChartSurface } from '@/components/chart/chart-surface';
+import { ShareDialog } from '@/components/chart/share-dialog';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,6 +42,13 @@ interface GraphResponse {
   groups: Array<{ id: string; name: string; kind: string; colour: string | null }>;
   totals: { positions: number; rendered: number; vacant: number };
   chart: { name: string } | null;
+  scenario: { id: string; name: string } | null;
+}
+
+interface ScenarioRow {
+  id: string;
+  name: string;
+  changeCount: number;
 }
 
 function ChartInner({ role }: { role: string }) {
@@ -58,7 +67,11 @@ function ChartInner({ role }: { role: string }) {
   });
   const [collapsed, setCollapsed] = useState<string[]>([]);
   const [layout, setLayout] = useState<'TOP_DOWN' | 'LEFT_RIGHT'>('TOP_DOWN');
-  const [mode, setMode] = useState<'LIVE' | 'PLANNING'>('LIVE');
+  const [mode, setMode] = useState<'LIVE' | 'PLANNING'>(
+    searchParams.get('scenario') ? 'PLANNING' : 'LIVE',
+  );
+  const [scenarioId, setScenarioId] = useState<string | null>(searchParams.get('scenario'));
+  const [shareOpen, setShareOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(searchParams.get('focus'));
   const [focus, setFocus] = useState<string | null>(searchParams.get('focus'));
   const [surface, setSurface] = useState<ChartSurface>(parseChartSurface(searchParams.get('view')));
@@ -70,25 +83,79 @@ function ChartInner({ role }: { role: string }) {
   const [vacancyFor, setVacancyFor] = useState<string | null>(null);
   const [vacancyTitle, setVacancyTitle] = useState('New role');
   const canEdit = role === 'OWNER' || role === 'ADMIN' || role === 'EDITOR';
+  const canShare = role === 'OWNER' || role === 'ADMIN';
   const fitOnce = useRef(false);
   const [canvasReady, setCanvasReady] = useState(false);
+  const lastRevision = useRef<string | null>(null);
 
   useEffect(() => {
     setCanvasReady(true);
   }, []);
 
   const query = filterQuery(filters);
+  const { data: scenarioData } = useQuery({
+    queryKey: ['scenarios'],
+    queryFn: async () => {
+      const response = await fetch('/api/v1/scenarios');
+      if (!response.ok) throw new Error('Failed to load scenarios');
+      return (await response.json()) as { scenarios: ScenarioRow[] };
+    },
+  });
+  const scenarios = scenarioData?.scenarios ?? [];
+
+  const persistScenario = (nextMode: 'LIVE' | 'PLANNING', nextScenarioId: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (nextMode === 'PLANNING' && nextScenarioId) params.set('scenario', nextScenarioId);
+    else params.delete('scenario');
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
+
+  useEffect(() => {
+    if (mode !== 'PLANNING' || scenarioId || scenarios.length === 0) return;
+    const id = scenarios[0]!.id;
+    setScenarioId(id);
+    persistScenario('PLANNING', id);
+  }, [mode, scenarioId, scenarios]);
+
   const { data, isLoading } = useQuery({
-    queryKey: ['chart-graph', query, collapsed.join(','), focus],
+    queryKey: ['chart-graph', query, collapsed.join(','), focus, mode === 'PLANNING' ? scenarioId : null],
     queryFn: async () => {
       const params = new URLSearchParams(query);
       if (collapsed.length) params.set('collapsed', collapsed.join(','));
       if (focus) params.set('focus', focus);
+      if (mode === 'PLANNING' && scenarioId) params.set('scenarioId', scenarioId);
       const response = await fetch(`/api/v1/charts/current/graph?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to load chart');
       return (await response.json()) as GraphResponse;
     },
+    enabled: mode !== 'PLANNING' || Boolean(scenarioId),
   });
+
+  const { data: presence } = useQuery({
+    queryKey: ['chart-presence', selectedId],
+    queryFn: async () => {
+      const response = await fetch('/api/v1/charts/presence', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ focusPositionId: selectedId }),
+      });
+      if (!response.ok) throw new Error('Failed to update presence');
+      return (await response.json()) as {
+        viewers: Array<{ userId: string; name: string; focusPositionId: string | null }>;
+        revision: string | null;
+      };
+    },
+    refetchInterval: 8000,
+  });
+
+  useEffect(() => {
+    if (!presence?.revision) return;
+    if (lastRevision.current && lastRevision.current !== presence.revision) {
+      queryClient.invalidateQueries({ queryKey: ['chart-graph'] });
+      toast.message('Someone else changed the organisation. Reloaded the latest seats.');
+    }
+    lastRevision.current = presence.revision;
+  }, [presence?.revision, queryClient]);
 
   useEffect(() => {
     if (!data || surface !== 'hierarchy') return;
@@ -125,7 +192,11 @@ function ChartInner({ role }: { role: string }) {
       const response = await fetch('/api/v1/relationships/reparent', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ ...body, mode }),
+        body: JSON.stringify({
+          ...body,
+          mode,
+          scenarioId: mode === 'PLANNING' ? scenarioId ?? undefined : undefined,
+        }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.message ?? 'Reparent failed');
@@ -134,6 +205,7 @@ function ChartInner({ role }: { role: string }) {
     onSuccess: () => {
       toast.success(mode === 'LIVE' ? 'Reporting line updated' : 'Recorded on the scenario');
       queryClient.invalidateQueries({ queryKey: ['chart-graph'] });
+      queryClient.invalidateQueries({ queryKey: ['scenarios'] });
       queryClient.invalidateQueries({ queryKey: ['audit'] });
     },
     onError: (error: Error) => toast.error(error.message),
@@ -144,16 +216,21 @@ function ChartInner({ role }: { role: string }) {
       const response = await fetch('/api/v1/positions', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          ...body,
+          mode,
+          scenarioId: mode === 'PLANNING' ? scenarioId ?? undefined : undefined,
+        }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.message ?? 'Could not create vacancy');
       return payload;
     },
     onSuccess: () => {
-      toast.success('Vacancy created');
+      toast.success(mode === 'PLANNING' ? 'Planned vacancy added' : 'Vacancy created');
       setVacancyFor(null);
       queryClient.invalidateQueries({ queryKey: ['chart-graph'] });
+      queryClient.invalidateQueries({ queryKey: ['scenarios'] });
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -220,16 +297,23 @@ function ChartInner({ role }: { role: string }) {
   }));
 
   return (
-    <div className="flex h-full flex-col print-chart" onKeyDown={onKeyDown}>
-      <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--card)] px-3 py-1.5 text-xs text-[var(--muted-foreground)]">
-        <span>{data?.chart?.name ?? 'Organisation chart'}</span>
-        <span>
-          {data
-            ? `${data.totals.rendered} shown · ${data.totals.positions} positions · ${data.totals.vacant} vacant`
-            : 'Loading'}
-          {mode === 'PLANNING' ? ' · Planning (live data untouched)' : ''}
-          {spotlight && selectedId ? ' · Spotlight on reporting line' : ''}
-        </span>
+    <div className="flex h-full flex-col bg-transparent print-chart" onKeyDown={onKeyDown}>
+      <div className="flex items-end justify-between px-4 pt-4 pb-1">
+        <div>
+          <p className="text-[11px] font-semibold tracking-[0.18em] text-[var(--muted-foreground)] uppercase">
+            {data?.chart?.name ?? 'Organisation chart'}
+          </p>
+          <p className="mt-0.5 text-sm text-[var(--foreground)]">
+            {data
+              ? `${data.totals.positions} seats · ${data.totals.positions - data.totals.vacant} filled · ${data.totals.vacant} open`
+              : 'Opening chart…'}
+            {mode === 'PLANNING' ? ` · Planning overlay${data?.scenario?.name ? ` · ${data.scenario.name}` : ''}` : ''}
+            {spotlight && selectedId ? ' · Spotlight on' : ''}
+            {presence?.viewers.length
+              ? ` · ${presence.viewers.map((viewer) => viewer.name).join(', ')} also viewing`
+              : ''}
+          </p>
+        </div>
       </div>
       <ChartToolbar
         departments={data?.departments ?? []}
@@ -245,7 +329,10 @@ function ChartInner({ role }: { role: string }) {
         layout={layout}
         onLayout={setLayout}
         mode={mode}
-        onMode={setMode}
+        onMode={(next) => {
+          setMode(next);
+          persistScenario(next, next === 'PLANNING' ? scenarioId : null);
+        }}
         canEdit={canEdit}
         onFit={() => flow.fitView({ padding: 0.12, duration: 250 })}
         surface={surface}
@@ -263,13 +350,16 @@ function ChartInner({ role }: { role: string }) {
         onExport={(format) => {
           window.location.href = `/api/v1/exports/directory?format=${format}`;
         }}
-        onShare={async () => {
-          const url = window.location.href;
-          await navigator.clipboard.writeText(url);
-          toast.success('Chart link copied');
-        }}
+        onShare={() => setShareOpen(true)}
         rosterQuery={rosterQuery}
         onRosterQuery={setRosterQuery}
+        scenarios={scenarios}
+        scenarioId={scenarioId}
+        onScenario={(id) => {
+          setScenarioId(id);
+          persistScenario('PLANNING', id);
+        }}
+        canShare={canShare}
       />
       <div className="canvas-grid relative min-h-0 flex-1">
         {isLoading ? (
@@ -292,8 +382,8 @@ function ChartInner({ role }: { role: string }) {
               proOptions={{ hideAttribution: true }}
               fitView
             >
-              <Background />
-              <MiniMap pannable zoomable />
+              <Background variant={BackgroundVariant.Dots} gap={22} size={1.15} color="rgba(47, 93, 98, 0.16)" />
+              <MiniMap pannable zoomable maskColor="rgba(246, 244, 239, 0.7)" />
               <Controls showInteractive={false} />
             </ReactFlow>
             <ChartLegend />
@@ -327,6 +417,7 @@ function ChartInner({ role }: { role: string }) {
 
       <DetailsDrawer
         positionId={selectedId}
+        scenarioId={mode === 'PLANNING' ? scenarioId : null}
         onClose={() => setSelectedId(null)}
         onFocus={(id) => {
           setFocus(id);
@@ -367,7 +458,11 @@ function ChartInner({ role }: { role: string }) {
       <Dialog open={Boolean(vacancyFor)} onOpenChange={(open) => !open && setVacancyFor(null)}>
         <DialogContent>
           <DialogTitle>Create vacancy</DialogTitle>
-          <DialogDescription>Adds an unoccupied position reporting to the selected seat.</DialogDescription>
+          <DialogDescription>
+            {mode === 'PLANNING'
+              ? 'Adds a planned open role on this scenario. Live seats are not created.'
+              : 'Adds an unoccupied position reporting to the selected seat.'}
+          </DialogDescription>
           <Input className="mt-3" value={vacancyTitle} onChange={(event) => setVacancyTitle(event.target.value)} />
           <div className="mt-4 flex justify-end gap-2">
             <Button variant="outline" onClick={() => setVacancyFor(null)}>
@@ -384,6 +479,7 @@ function ChartInner({ role }: { role: string }) {
           </div>
         </DialogContent>
       </Dialog>
+      <ShareDialog open={shareOpen} onOpenChange={setShareOpen} />
     </div>
   );
 }

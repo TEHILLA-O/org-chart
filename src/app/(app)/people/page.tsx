@@ -31,6 +31,7 @@ interface PersonRow {
     };
   }>;
   groupMemberships: Array<{ group: { id: string; name: string } }>;
+  skills: Array<{ skill: { id: string; name: string }; source: string }>;
 }
 
 interface ProfileDraft {
@@ -252,6 +253,7 @@ export default function PeoplePage() {
               <th className="px-4 py-2">Name</th>
               <th className="px-4 py-2">Title</th>
               <th className="px-4 py-2">Groups</th>
+              <th className="px-4 py-2">Skills</th>
               <th className="px-4 py-2">Email</th>
             </tr>
           </thead>
@@ -284,6 +286,15 @@ export default function PeoplePage() {
                     <div className="flex flex-wrap gap-1">
                       {person.groupMemberships.map((membership) => (
                         <Badge key={membership.group.id}>{membership.group.name}</Badge>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2">
+                    <div className="flex flex-wrap gap-1">
+                      {person.skills.map((row) => (
+                        <Badge key={row.skill.id} tone="sea">
+                          {row.skill.name}
+                        </Badge>
                       ))}
                     </div>
                   </td>

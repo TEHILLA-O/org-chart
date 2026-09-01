@@ -177,3 +177,22 @@ function splitName(display: string): [string, string] {
   if (parts.length === 1) return [parts[0]!, ''];
   return [parts[0]!, parts.slice(1).join(' ')];
 }
+
+export async function fetchGithubLanguages(username: string): Promise<string[]> {
+  try {
+    const response = await fetch(
+      `https://api.github.com/users/${encodeURIComponent(username)}/repos?sort=pushed&per_page=8`,
+      {
+        headers: {
+          accept: 'application/vnd.github+json',
+          'user-agent': 'OrgPulse/0.1',
+        },
+      },
+    );
+    if (!response.ok) return [];
+    const repos = (await response.json()) as Array<{ language?: string | null }>;
+    return [...new Set(repos.map((repo) => repo.language).filter((value): value is string => Boolean(value)))];
+  } catch {
+    return [];
+  }
+}

@@ -4,6 +4,8 @@ import { getCorrelationId } from '@/lib/correlation';
 import { ConflictError, ForbiddenError, NotFoundError } from '@/lib/errors';
 import type { Actor } from '@/domain/permissions/policy';
 import { can } from '@/domain/permissions/policy';
+import { applyScenarioOverlay } from '@/domain/scenario/overlay';
+import { loadLiveOrOverlayGraph, toChangeViews } from '@/server/services/scenario-service';
 
 export type ChartMode = 'LIVE' | 'PLANNING';
 
@@ -132,7 +134,35 @@ async function writeScenarioMove(input: {
     throw new NotFoundError('Scenario not found.');
   }
 
-  const sequence = (scenario.changes[0]?.sequence ?? 0) + 1;
+  const overlay = await loadLiveOrOverlayGraph(input.organisationId, scenario.id);
+  const nextSequence = (scenario.changes[0]?.sequence ?? 0) + 1;
+  const proposed = applyScenarioOverlay(
+    {
+      positions: overlay.live.positions,
+      people: overlay.live.people,
+      assignments: overlay.live.assignments,
+      relationships: overlay.live.relationships,
+    },
+    [
+      ...toChangeViews(overlay.changes),
+      {
+        sequence: nextSequence,
+        changeType: 'MOVE_POSITION',
+        entityId: input.subordinatePositionId,
+        payload: { managerPositionId: input.managerPositionId },
+      },
+    ],
+  );
+  assertAcyclicPrimaryGraph(
+    proposed.relationships
+      .filter((rel) => rel.isPrimary)
+      .map((rel) => ({
+        subordinatePositionId: rel.subordinatePositionId,
+        managerPositionId: rel.managerPositionId,
+      })),
+  );
+
+  const sequence = nextSequence;
   const change = await prisma.scenarioChange.create({
     data: {
       scenarioId: scenario.id,

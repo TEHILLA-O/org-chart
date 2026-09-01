@@ -3,24 +3,28 @@ import { LoginForm } from '@/components/auth/login-form';
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen bg-[var(--ink)]">
-      <div className="hidden w-[42%] flex-col justify-between border-r border-white/10 p-10 text-[#e8e4d8] lg:flex">
-        <div>
-          <p className="text-xs tracking-[0.3em] text-[#c9a227] uppercase">OrgPulse</p>
-          <h1 className="mt-6 max-w-sm text-4xl leading-tight font-semibold">
-            The organisation, as it actually is.
+    <div className="flex min-h-screen bg-[#17141f]">
+      <div className="relative hidden w-[44%] flex-col justify-between overflow-hidden p-12 text-[#f4f0e8] lg:flex">
+        <div className="absolute inset-0 bg-[radial-gradient(800px_400px_at_10%_0%,rgba(201,162,39,0.22),transparent_55%),radial-gradient(700px_500px_at_90%_80%,rgba(47,93,98,0.35),transparent_50%)]" />
+        <div className="relative">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#c9a227,#2f5d62)] text-lg font-bold">
+            O
+          </div>
+          <p className="mt-6 text-[11px] font-semibold tracking-[0.28em] text-[#e4c56a] uppercase">OrgPulse</p>
+          <h1 className="mt-4 max-w-sm text-4xl leading-tight font-semibold tracking-tight">
+            See the organisation as people actually sit in it.
           </h1>
         </div>
-        <p className="max-w-sm text-sm text-[#8b909d]">
-          Positions, not people, form the hierarchy. People occupy seats. Vacancies remain
-          visible. Every change is audited.
+        <p className="relative max-w-sm text-sm leading-relaxed text-[#9a94a3]">
+          Positions form the hierarchy. People occupy seats. Open roles stay visible, and every
+          change is audited.
         </p>
       </div>
-      <div className="flex flex-1 items-center justify-center bg-[var(--paper)] p-6">
-        <div className="w-full max-w-sm rounded-xl border border-[var(--border)] bg-[var(--card)] p-6 shadow-sm">
-          <h2 className="text-xl font-semibold">Sign in</h2>
+      <div className="flex flex-1 items-center justify-center bg-[#f6f4ef] p-6">
+        <div className="w-full max-w-sm rounded-3xl bg-white p-8 shadow-[0_20px_50px_rgba(23,20,31,0.08)]">
+          <h2 className="text-2xl font-semibold tracking-tight">Welcome back</h2>
           <p className="mt-1 mb-6 text-sm text-[var(--muted-foreground)]">
-            Demo directory: owner@northstar.example
+            Demo: owner@northstar.example
           </p>
           <Suspense>
             <LoginForm />
