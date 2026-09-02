@@ -48,8 +48,9 @@ export async function checkAllSources(organisationId: string, options?: { refres
   for (const connector of connectors) {
     const stored = (connector.config ?? {}) as Record<string, unknown>;
     const secrets = decryptConnectorSecrets(connector.encryptedCredentials);
-    if (connector.provider === 'RIPPLING' && !secrets.apiToken && config().RIPPLING_API_TOKEN) {
-      secrets.apiToken = config().RIPPLING_API_TOKEN;
+    const ripplingToken = config().RIPPLING_API_TOKEN;
+    if (connector.provider === 'RIPPLING' && !secrets.apiToken && ripplingToken) {
+      secrets.apiToken = ripplingToken;
     }
     const mode =
       connector.provider === 'RIPPLING' && (secrets.apiToken || stored.mode === 'real')

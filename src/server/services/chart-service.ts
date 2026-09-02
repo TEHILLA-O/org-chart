@@ -12,6 +12,7 @@ import { loadDefaultChart, loadOrgGroups, loadOrganisationGraph } from '@/reposi
 import { NotFoundError } from '@/lib/errors';
 import { loadLiveOrOverlayGraph } from '@/server/services/scenario-service';
 import { isDemoMode } from '@/demo/mode';
+import { demoPersonRecord, demoPersonSkills } from '@/demo/northstar';
 import { displayCompanyName } from '@/lib/utils';
 
 function redactShareNodes(nodes: ChartNodeModel[], allowedFields: readonly string[]): ChartNodeModel[] {
