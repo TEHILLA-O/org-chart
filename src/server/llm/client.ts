@@ -1,6 +1,6 @@
 import { config } from '@/lib/config';
 
-export function isDeepSeekConfigured() {
+export function isAiConfigured() {
   return Boolean(config().DEEPSEEK_API_KEY);
 }
 
@@ -54,7 +54,7 @@ export async function completeChat(input: {
   const cfg = config();
   const key = cfg.DEEPSEEK_API_KEY;
   if (!key) {
-    throw new Error('No DeepSeek key is configured.');
+    throw new Error('No AI key is configured.');
   }
 
   const messages: ChatMessage[] = input.messages
@@ -80,7 +80,7 @@ export async function completeChat(input: {
   });
 
   if (!response.ok) {
-    throw new Error(`DeepSeek request failed (${response.status}).`);
+    throw new Error(`AI request failed (${response.status}).`);
   }
 
   const body = (await response.json()) as {
@@ -111,7 +111,7 @@ export async function completeChat(input: {
   });
   const answer = raw?.content?.trim() ?? '';
   if (!answer && toolCalls.length === 0) {
-    throw new Error('DeepSeek returned an empty answer.');
+    throw new Error('The AI agent returned an empty answer.');
   }
 
   const message: ChatMessage = {
@@ -128,7 +128,7 @@ export async function completeChat(input: {
 
   return {
     answer,
-    model: body.model ?? 'deepseek-chat',
+    model: 'AI agent',
     toolCalls,
     message,
   };

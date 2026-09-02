@@ -98,7 +98,7 @@ export default function AssistantPage() {
           <Sparkles className="mt-0.5 h-4 w-4 text-[#f5d0fe]" />
           <div>
             <p className="font-medium">
-              {canAsk ? 'DeepSeek can look up the org and apply edits you request' : 'Add a DeepSeek key to enable Ask'}
+              {canAsk ? 'The AI agent can look up the org and apply edits you request' : 'Add an AI key to enable Ask'}
             </p>
             <p className="mt-1 text-sm text-[var(--muted-foreground)]">
               Try “Who reports to Amelia?” or “Move Sam Imported to report to the CEO”.
@@ -131,7 +131,7 @@ export default function AssistantPage() {
           <Button
             variant="outline"
             disabled={!canAsk || ask.isPending || q.trim().length < 3}
-            title={canAsk ? 'Ask DeepSeek to scan or edit the live organisation' : 'Add DEEPSEEK_API_KEY to enable Ask'}
+            title={canAsk ? 'Ask the AI agent to scan or edit the live organisation' : 'Add an AI key to enable Ask'}
             onClick={() => ask.mutate()}
           >
             {ask.isPending ? 'Working…' : 'Ask assistant'}
