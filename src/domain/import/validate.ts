@@ -13,6 +13,15 @@ export interface MappedImportRow {
   errors: string[];
 }
 
+export function importPersonLabel(values: Record<ImportField, string>): string {
+  return (
+    values.displayName ||
+    [values.firstName, values.lastName].filter(Boolean).join(' ') ||
+    values.email ||
+    ''
+  ).trim();
+}
+
 export function mapImportRows(
   rawRows: Array<{ rowNumber: number; raw: Record<string, string> }>,
   columnMap: Record<string, string | null>,
@@ -24,9 +33,8 @@ export function mapImportRows(
   for (const item of rawRows) {
     const values = applyColumnMap(item.raw, columnMap);
     const errors: string[] = [];
-    const hasName =
-      Boolean(values.displayName) || (Boolean(values.firstName) && Boolean(values.lastName));
-    if (!hasName && !values.email) {
+    const label = importPersonLabel(values);
+    if (!label) {
       errors.push('Need a name or an email.');
     }
     if (!values.title) {
@@ -43,8 +51,23 @@ export function mapImportRows(
         seenEmail.set(values.email.toLowerCase(), item.rowNumber);
       }
     }
+    const managerName = values.managerName.trim().toLowerCase();
+    if (label && managerName && label.toLowerCase() === managerName) {
+      errors.push('Person cannot report to themselves.');
+    }
+    if (
+      values.email &&
+      values.managerEmail &&
+      values.email.toLowerCase() === values.managerEmail.toLowerCase()
+    ) {
+      errors.push('Person cannot report to their own email.');
+    }
 
-    const status = errors.length ? (errors.some((msg) => msg.startsWith('Duplicate')) ? 'DUPLICATE' : 'INVALID') : 'NEW';
+    const status = errors.length
+      ? errors.some((msg) => msg.startsWith('Duplicate'))
+        ? 'DUPLICATE'
+        : 'INVALID'
+      : 'NEW';
     if (errors.length) {
       for (const message of errors) {
         issues.push({ rowNumber: item.rowNumber, message });
@@ -55,3 +78,4 @@ export function mapImportRows(
 
   return { rows, issues };
 }
+

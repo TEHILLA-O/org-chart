@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { Lock, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,7 +19,15 @@ interface Match {
   facts: string;
 }
 
+interface AssistantAction {
+  name: string;
+  ok: boolean;
+  mutating: boolean;
+  summary: string;
+}
+
 export default function AssistantPage() {
+  const queryClient = useQueryClient();
   const [q, setQ] = useState('');
   const { data: status } = useQuery({
     queryKey: ['assistant-status'],
@@ -58,66 +66,63 @@ export default function AssistantPage() {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.message ?? 'Ask failed');
-      return payload as { answer: string; model: string };
+      return payload as { answer: string; model: string; actions?: AssistantAction[]; changed?: boolean };
+    },
+    onSuccess: (payload) => {
+      if (payload.changed) {
+        queryClient.invalidateQueries({ queryKey: ['people'] });
+        queryClient.invalidateQueries({ queryKey: ['chart-graph'] });
+        queryClient.invalidateQueries({ queryKey: ['directory'] });
+        toast.success('Live organisation updated.');
+      }
     },
     onError: (error: Error) => toast.error(error.message),
   });
 
-  const locked = !status?.settings.privacyReviewComplete;
   const modelOn = status?.settings.modelConnected === true;
-  const canAsk = !locked && modelOn;
+  const canAsk = modelOn;
 
   return (
     <div className="space-y-4">
       <div>
         <p className="text-xs tracking-[0.25em] text-[var(--muted-foreground)] uppercase">Assistant</p>
-        <h1 className="text-2xl font-semibold">Ask about the organisation</h1>
+        <h1 className="text-2xl font-semibold">Ask or change the organisation</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Lookup always uses stored seats. Ask sends names, titles, managers, groups, and skills to DeepSeek — never
-          emails or HR fields — after an admin marks the privacy review and a key is configured.
+          The assistant scans live seats, departments, and OKRs. Editors can also ask it to rename people, change
+          titles, move reporting lines, or add seats. It never sends emails or HR fields to the model.
         </p>
       </div>
 
       <Card className="border-[#e879f9]/35 bg-[#e879f9]/10">
         <div className="flex items-start gap-3">
-          {canAsk ? (
-            <Sparkles className="mt-0.5 h-4 w-4 text-[#f5d0fe]" />
-          ) : (
-            <Lock className="mt-0.5 h-4 w-4 text-[#f5d0fe]" />
-          )}
+          <Sparkles className="mt-0.5 h-4 w-4 text-[#f5d0fe]" />
           <div>
             <p className="font-medium">
-              {canAsk
-                ? 'DeepSeek is connected for org-chart questions'
-                : locked
-                  ? 'Disabled until privacy policies are cross-checked'
-                  : 'Privacy review is complete, but no DeepSeek key is set'}
+              {canAsk ? 'DeepSeek can look up the org and apply edits you request' : 'Add a DeepSeek key to enable Ask'}
             </p>
             <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-              Admins mark the policy review on Administration. Add <code>DEEPSEEK_API_KEY</code> to the environment,
-              then restart the app. The model only sees organisation facts you already store.
+              Try “Who reports to Amelia?” or “Move Sam Imported to report to the CEO”.
             </p>
             <Badge tone="gold" className="mt-2">
-              {canAsk
-                ? 'Review complete · model connected'
-                : locked
-                  ? 'Privacy review outstanding'
-                  : 'Review marked complete · model not connected'}
+              {canAsk ? 'Model connected · live tools on' : 'Model not connected'}
             </Badge>
           </div>
         </div>
       </Card>
 
       <Card className="space-y-3">
-        <p className="text-sm">Search the directory, or ask a question about reporting lines and skills.</p>
+        <p className="text-sm">Ask a question, or tell it what to change. Look up still searches stored seats only.</p>
         <div className="flex flex-wrap gap-2">
           <Input
             className="min-w-[16rem] flex-1"
-            placeholder="Name, title, or a question such as who reports to the CTO"
+            placeholder="Who reports to the CEO? Change Ada’s title to Staff engineer"
             value={q}
             onChange={(event) => setQ(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === 'Enter') lookup.mutate();
+              if (event.key === 'Enter') {
+                if (canAsk && q.trim().length >= 3) ask.mutate();
+                else lookup.mutate();
+              }
             }}
           />
           <Button onClick={() => lookup.mutate()} disabled={lookup.isPending}>
@@ -126,18 +131,23 @@ export default function AssistantPage() {
           <Button
             variant="outline"
             disabled={!canAsk || ask.isPending || q.trim().length < 3}
-            title={
-              canAsk
-                ? 'Send organisation facts to DeepSeek'
-                : 'Blocked until privacy review is complete and a DeepSeek key is configured'
-            }
+            title={canAsk ? 'Ask DeepSeek to scan or edit the live organisation' : 'Add DEEPSEEK_API_KEY to enable Ask'}
             onClick={() => ask.mutate()}
           >
-            {ask.isPending ? 'Asking…' : 'Ask assistant'}
+            {ask.isPending ? 'Working…' : 'Ask assistant'}
           </Button>
         </div>
         {lookup.data ? (
           <p className="text-sm text-[var(--muted-foreground)]">{lookup.data.message}</p>
+        ) : null}
+        {ask.data?.actions?.length ? (
+          <ul className="flex flex-wrap gap-1">
+            {ask.data.actions.map((action, index) => (
+              <Badge key={`${action.name}-${index}`} tone={action.ok ? (action.mutating ? 'gold' : 'sea') : 'vacant'}>
+                {action.summary}
+              </Badge>
+            ))}
+          </ul>
         ) : null}
         {ask.data ? (
           <div className="rounded-2xl bg-white/8 p-4 text-sm leading-relaxed whitespace-pre-wrap">

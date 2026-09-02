@@ -1,11 +1,15 @@
 import { prisma } from '@/lib/db';
 import { config } from '@/lib/config';
 import { pullSupabasePeople } from '@/connectors/supabase';
+import { createRipplingConnector } from '@/connectors/rippling';
+import { decryptConnectorSecrets } from '@/lib/connector-secrets';
+import { getCorrelationId } from '@/lib/correlation';
 import { addPersonSkill } from '@/server/services/skill-service';
 import { suggestSkillsFromSources } from '@/domain/skills/extract';
 import type { ExternalPerson } from '@/connectors/types';
 import { isDemoMode, assertWritable } from '@/demo/mode';
 import { demoDirectory } from '@/demo/northstar';
+import type { ConnectorProvider } from '@prisma/client';
 
 export async function listLiveDirectory(organisationId: string) {
   if (isDemoMode()) return demoDirectory();
@@ -50,6 +54,29 @@ export async function previewDirectorySource(organisationId: string, connectorId
     return { people: [] as ExternalPerson[], connector: null };
   }
   const stored = (connector.config ?? {}) as Record<string, unknown>;
+  if (connector.provider === 'RIPPLING') {
+    const token =
+      decryptConnectorSecrets(connector.encryptedCredentials).apiToken || config().RIPPLING_API_TOKEN || '';
+    if (!token) {
+      return {
+        people: [] as ExternalPerson[],
+        connector: { id: connector.id, name: connector.name, provider: connector.provider },
+      };
+    }
+    const adapter = createRipplingConnector({
+      apiToken: token,
+      baseUrl: config().RIPPLING_API_BASE_URL,
+    });
+    const people: ExternalPerson[] = [];
+    for await (const person of adapter.pullPeople({
+      organisationId,
+      correlationId: getCorrelationId(),
+    })) {
+      people.push(person);
+      if (people.length >= 500) break;
+    }
+    return { people, connector: { id: connector.id, name: connector.name, provider: connector.provider } };
+  }
   if (connector.provider === 'SUPABASE') {
     const people = await pullSupabasePeople({
       organisationId,
@@ -66,7 +93,11 @@ export async function previewDirectorySource(organisationId: string, connectorId
   return { people: [], connector: { id: connector.id, name: connector.name, provider: connector.provider } };
 }
 
-export async function applyDirectoryPeople(organisationId: string, rows: ExternalPerson[]) {
+export async function applyDirectoryPeople(
+  organisationId: string,
+  rows: ExternalPerson[],
+  provider: ConnectorProvider = 'SUPABASE',
+) {
   assertWritable();
   let created = 0;
   let updated = 0;
@@ -138,7 +169,7 @@ export async function applyDirectoryPeople(organisationId: string, rows: Externa
       where: {
         organisationId_provider_entityType_externalId: {
           organisationId,
-          provider: 'SUPABASE',
+          provider,
           entityType: 'PERSON',
           externalId: row.externalId,
         },
@@ -146,7 +177,7 @@ export async function applyDirectoryPeople(organisationId: string, rows: Externa
       update: { personId: person.id, lastSeenAt: new Date(), syncHash: row.email ?? row.externalId },
       create: {
         organisationId,
-        provider: 'SUPABASE',
+        provider,
         entityType: 'PERSON',
         externalId: row.externalId,
         personId: person.id,

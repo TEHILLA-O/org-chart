@@ -6,7 +6,11 @@ import { createRipplingConnector } from './rippling';
 import { createSupabaseConnector } from './supabase';
 import { config } from '@/lib/config';
 
-export function resolveConnector(provider: string, mode: 'mock' | 'real' = 'mock'): ConnectorAdapter {
+export function resolveConnector(
+  provider: string,
+  mode: 'mock' | 'real' = 'mock',
+  secrets?: Record<string, string>,
+): ConnectorAdapter {
   const cfg = config();
 
   if (provider === 'MICROSOFT_GRAPH' && mode === 'real') {
@@ -22,8 +26,8 @@ export function resolveConnector(provider: string, mode: 'mock' | 'real' = 'mock
 
   if (provider === 'RIPPLING' && mode === 'real') {
     return createRipplingConnector({
-      apiToken: cfg.RIPPLING_API_TOKEN,
-      baseUrl: cfg.RIPPLING_API_BASE_URL,
+      apiToken: secrets?.apiToken || cfg.RIPPLING_API_TOKEN,
+      baseUrl: secrets?.baseUrl || cfg.RIPPLING_API_BASE_URL,
     });
   }
   if (provider === 'RIPPLING') {
@@ -33,7 +37,7 @@ export function resolveConnector(provider: string, mode: 'mock' | 'real' = 'mock
   if (provider === 'SUPABASE') {
     return createSupabaseConnector({
       url: cfg.SUPABASE_URL,
-      apiKey: cfg.SUPABASE_SERVICE_KEY,
+      apiKey: cfg.SUPABASE_SERVICE_KEY || cfg.SUPABASE_PUBLISHABLE_KEY,
     });
   }
 
@@ -46,7 +50,9 @@ export function connectorMode(
 ): 'mock' | 'real' {
   const fromRow = stored?.mode;
   if (fromRow === 'mock' || fromRow === 'real') return fromRow;
-  if (provider === 'RIPPLING') return config().RIPPLING_CONNECTOR_MODE;
+  if (provider === 'RIPPLING') {
+    return config().RIPPLING_API_TOKEN ? 'real' : config().RIPPLING_CONNECTOR_MODE;
+  }
   if (provider === 'MICROSOFT_GRAPH' || provider === 'MICROSOFT_MOCK') {
     return config().MICROSOFT_CONNECTOR_MODE;
   }

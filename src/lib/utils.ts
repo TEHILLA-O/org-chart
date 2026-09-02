@@ -1,8 +1,13 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-export function cn(...inputs: ClassValue[]): string {
+export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
+}
+
+export function displayCompanyName(name?: string | null): string {
+  if (!name || /northstar/i.test(name)) return 'Opply';
+  return name;
 }
 
 export function portraitUrl(seed: string, stored?: string | null): string {

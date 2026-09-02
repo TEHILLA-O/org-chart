@@ -52,8 +52,10 @@ export default function DirectoryPage() {
     },
   });
 
-  const supabaseSources = (data?.sources ?? []).filter((source) => source.provider === 'SUPABASE');
-  const selected = connectorId || supabaseSources[0]?.id || '';
+  const pullSources = (data?.sources ?? []).filter(
+    (source) => source.provider === 'SUPABASE' || source.provider === 'RIPPLING',
+  );
+  const selected = connectorId || pullSources[0]?.id || '';
 
   const pull = useMutation({
     mutationFn: async (apply: boolean) => {
@@ -97,10 +99,9 @@ export default function DirectoryPage() {
       </div>
 
       <Card className="space-y-3">
-        <h2 className="font-semibold">Pull from Supabase</h2>
+        <h2 className="font-semibold">Pull from a source</h2>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Without <code>SUPABASE_URL</code> the connector returns two mock directory people. With a project URL and
-          service key, we read the configured table over REST.
+          Preview and merge people from Supabase or Rippling. Postgres remains the system of record.
         </p>
         <div className="flex flex-wrap items-end gap-2">
           <Select
@@ -108,8 +109,8 @@ export default function DirectoryPage() {
             value={selected}
             onValueChange={setConnectorId}
           >
-            {supabaseSources.length === 0 ? <SelectItem value="">No Supabase connector</SelectItem> : null}
-            {supabaseSources.map((source) => (
+            {pullSources.length === 0 ? <SelectItem value="">No directory connector</SelectItem> : null}
+            {pullSources.map((source) => (
               <SelectItem key={source.id} value={source.id}>
                 {source.name} · {source.status}
               </SelectItem>

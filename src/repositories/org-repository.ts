@@ -8,6 +8,7 @@ import {
 } from '@/domain/org/types';
 import { isDemoMode } from '@/demo/mode';
 import { demoChart, demoDashboard, demoGraph, demoGroups } from '@/demo/northstar';
+import { displayCompanyName } from '@/lib/utils';
 
 const notDeleted = { deletedAt: null };
 
@@ -91,7 +92,7 @@ export async function loadDashboardMetrics(organisationId: string) {
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
 
-  const [people, positions, departments, locations, assignments, changesThisMonth, lastSync, recentAudit] =
+  const [people, positions, departments, locations, assignments, changesThisMonth, lastSync, recentAudit, organisation] =
     await Promise.all([
       prisma.person.count({ where: { organisationId, deletedAt: null, status: 'ACTIVE' } }),
       prisma.position.count({ where: { organisationId, deletedAt: null } }),
@@ -110,6 +111,10 @@ export async function loadDashboardMetrics(organisationId: string) {
         include: { connector: true },
       }),
       listAuditEvents(organisationId, 8),
+      prisma.organisation.findFirst({
+        where: { id: organisationId, deletedAt: null },
+        select: { name: true },
+      }),
     ]);
 
   const occupied = new Set(assignments.map((row) => row.positionId));
@@ -132,6 +137,7 @@ export async function loadDashboardMetrics(organisationId: string) {
   });
 
   return {
+    organisationName: displayCompanyName(organisation?.name),
     people,
     positions,
     vacantPositions: vacant,

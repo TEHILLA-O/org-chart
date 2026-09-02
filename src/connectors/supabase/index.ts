@@ -41,12 +41,35 @@ function settings(cfg: ConnectorConfig) {
   };
 }
 
+function supabaseApiUrl(raw?: string) {
+  if (!raw) return undefined;
+  const trimmed = raw.trim().replace(/\/$/, '');
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  const fromDbHost = trimmed.match(/@db\.([a-z0-9]+)\.supabase\.co/i);
+  if (fromDbHost?.[1]) return `https://${fromDbHost[1]}.supabase.co`;
+  const fromProjectHost = trimmed.match(/@([a-z0-9]+)\.supabase\.co/i);
+  if (fromProjectHost?.[1]) return `https://${fromProjectHost[1]}.supabase.co`;
+  return undefined;
+}
+
+function supabaseHeaders(key: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    apikey: key,
+    Accept: 'application/json',
+    'User-Agent': 'Opply-ochart/1.0',
+  };
+  if (!key.startsWith('sb_')) {
+    headers.authorization = `Bearer ${key}`;
+  }
+  return headers;
+}
+
 export function createSupabaseConnector(options?: { url?: string; apiKey?: string }): ConnectorAdapter {
   return {
     getMetadata: () => SUPABASE_METADATA,
     testConnection: async (cfg) => {
       const stored = settings(cfg);
-      const url = stored.url || options?.url;
+      const url = supabaseApiUrl(stored.url || options?.url);
       const key = stored.serviceKey || stored.anonKey || options?.apiKey;
       if (!url || !key) {
         return {
@@ -56,12 +79,21 @@ export function createSupabaseConnector(options?: { url?: string; apiKey?: strin
       }
       try {
         const table = stored.table || 'people';
-        const response = await fetch(`${url.replace(/\/$/, '')}/rest/v1/${table}?select=*&limit=1`, {
-          headers: {
-            apikey: key,
-            authorization: `Bearer ${key}`,
-          },
-        });
+        const headers = supabaseHeaders(key);
+        const auth = await fetch(`${url}/rest/v1/`, { headers });
+        if (auth.status === 401 || auth.status === 403) {
+          return { ok: false, message: `Supabase rejected the API key (${auth.status}).` };
+        }
+        if (!auth.ok) {
+          return { ok: false, message: `Supabase responded ${auth.status} while checking the API.` };
+        }
+        const response = await fetch(`${url}/rest/v1/${table}?select=*&limit=1`, { headers });
+        if (response.status === 404) {
+          return {
+            ok: true,
+            message: `API key works. No "${table}" table is exposed yet, so directory import has nothing to pull.`,
+          };
+        }
         if (!response.ok) {
           return { ok: false, message: `Supabase responded ${response.status}. Check the table name and key.` };
         }
@@ -89,14 +121,14 @@ export function createSupabaseConnector(options?: { url?: string; apiKey?: strin
 
 export async function pullSupabasePeople(cfg: ConnectorConfig): Promise<ExternalPerson[]> {
   const stored = settings(cfg);
-  const url = stored.url;
+  const url = supabaseApiUrl(stored.url);
   const key = stored.serviceKey || stored.anonKey;
   if (!url || !key) {
     return MOCK_PEOPLE;
   }
   const table = stored.table || 'people';
-  const response = await fetch(`${url.replace(/\/$/, '')}/rest/v1/${table}?select=*`, {
-    headers: { apikey: key, authorization: `Bearer ${key}` },
+  const response = await fetch(`${url}/rest/v1/${table}?select=*`, {
+    headers: supabaseHeaders(key),
   });
   if (!response.ok) {
     throw new Error(`Supabase read failed (${response.status}).`);

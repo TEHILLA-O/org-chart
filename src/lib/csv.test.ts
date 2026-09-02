@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { csvEscape, sanitiseSpreadsheetText, toCsv } from './csv';
+import { csvEscape, parseCsv, sanitiseSpreadsheetText, toCsv } from './csv';
 
 describe('csvEscape', () => {
   it('leaves ordinary text unquoted', () => {
@@ -24,6 +24,15 @@ describe('toCsv', () => {
     expect(csv.startsWith('\uFEFF')).toBe(true);
     expect(csv).toContain('Name,Title');
     expect(csv).toContain('Noah,CTO');
+  });
+});
+
+describe('parseCsv', () => {
+  it('reads a BOM and semicolon Excel export', () => {
+    const parsed = parseCsv('\uFEFFPerson;Title;Manager\nSam Imported;Analyst;Amelia Shah\n');
+    expect(parsed.headers).toEqual(['Person', 'Title', 'Manager']);
+    expect(parsed.rows[0]?.Person).toBe('Sam Imported');
+    expect(parsed.rows[0]?.Title).toBe('Analyst');
   });
 });
 

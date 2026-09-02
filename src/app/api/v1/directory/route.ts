@@ -21,6 +21,10 @@ export const POST = apiHandler('people:write', async (ctx) => {
   if (!body.apply) {
     return json({ preview: preview.people, connector: preview.connector });
   }
-  const result = await applyDirectoryPeople(ctx.organisationId, preview.people);
+  const result = await applyDirectoryPeople(
+    ctx.organisationId,
+    preview.people,
+    preview.connector?.provider ?? 'SUPABASE',
+  );
   return json({ preview: preview.people, connector: preview.connector, applied: result });
 });

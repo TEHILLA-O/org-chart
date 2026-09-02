@@ -1,4 +1,5 @@
 import type { ConnectorAdapter, ConnectorMetadata, ExternalPerson } from '../types';
+import { mapRipplingWorker, type RipplingWorker } from './map-worker';
 
 export const RIPPLING_METADATA: ConnectorMetadata = {
   provider: 'RIPPLING',
@@ -25,75 +26,54 @@ export function createRipplingConnector(credentials?: {
     );
   }
 
-  async function ripplingGet(path: string): Promise<Response> {
-    return fetch(`${baseUrl}${path}`, {
-      headers: {
-        authorization: `Bearer ${token}`,
-        accept: 'application/json',
-        'user-agent': 'OpplyOchart/0.1',
-      },
+  const headers = {
+    authorization: `Bearer ${token}`,
+    accept: 'application/json',
+    'user-agent': 'Opply-ochart/1.0',
+  };
+
+  function workersUrl() {
+    const params = new URLSearchParams({
+      limit: '100',
+      expand: 'user,manager,department',
+      filter: 'status eq "ACTIVE"',
     });
+    return `${baseUrl}/workers/?${params.toString()}`;
+  }
+
+  async function ripplingGet(url: string): Promise<Response> {
+    return fetch(url, { headers });
   }
 
   return {
     getMetadata: () => RIPPLING_METADATA,
     testConnection: async () => {
-      const response = await ripplingGet('/workers?limit=1');
+      const response = await ripplingGet(workersUrl().replace('limit=100', 'limit=1'));
       if (!response.ok) {
         return {
           ok: false,
-          message: `Rippling returned ${response.status}. Check the API token and workers:read scope.`,
+          message: `Rippling returned ${response.status}. Check the API token and workers.read scope.`,
         };
       }
       return { ok: true, message: 'Rippling REST API accepted the token.' };
     },
     authenticate: async () => ({ ok: true }),
     async *pullPeople() {
-      let next: string | null = `${baseUrl}/workers?limit=100`;
+      let next: string | null = workersUrl();
       while (next) {
-        const response = await fetch(next, {
-          headers: {
-            authorization: `Bearer ${token}`,
-            accept: 'application/json',
-            'user-agent': 'OpplyOchart/0.1',
-          },
-        });
+        const response = await ripplingGet(next);
         if (!response.ok) {
           throw new Error(`Rippling workers pull failed (${response.status}).`);
         }
         const body = (await response.json()) as {
-          results?: Array<{
-            id?: string;
-            user_id?: string;
-            first_name?: string;
-            last_name?: string;
-            preferred_first_name?: string;
-            work_email?: string;
-            title?: { name?: string };
-            department?: { name?: string };
-            work_location?: { name?: string };
-            manager?: { id?: string };
-            start_date?: string;
-          }>;
+          results?: RipplingWorker[];
+          data?: RipplingWorker[];
           next_link?: string | null;
         };
-        for (const worker of body.results ?? []) {
-          const person: ExternalPerson = {
-            externalId: String(worker.id ?? worker.user_id ?? ''),
-            firstName: worker.first_name,
-            lastName: worker.last_name,
-            displayName:
-              [worker.preferred_first_name ?? worker.first_name, worker.last_name].filter(Boolean).join(' ') ||
-              worker.work_email ||
-              'Rippling worker',
-            email: worker.work_email,
-            jobTitle: worker.title?.name,
-            department: worker.department?.name,
-            officeLocation: worker.work_location?.name,
-            managerExternalId: worker.manager?.id,
-            startDate: worker.start_date,
-          };
-          if (person.externalId) yield person;
+        const rows = body.results ?? body.data ?? [];
+        for (const worker of rows) {
+          const person: ExternalPerson | null = mapRipplingWorker(worker);
+          if (person) yield person;
         }
         next = body.next_link ?? null;
       }

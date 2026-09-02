@@ -19,7 +19,7 @@ import '@xyflow/react/dist/style.css';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { PositionNode } from '@/components/chart/position-node';
-import { layoutChart } from '@/components/chart/layout';
+import { layoutChart, snapshotNodePositions, type ChartPoint } from '@/components/chart/layout';
 import { ChartToolbar, filterQuery } from '@/components/chart/chart-toolbar';
 import { ChartLegend } from '@/components/chart/chart-legend';
 import { DetailsDrawer } from '@/components/chart/details-drawer';
@@ -38,6 +38,35 @@ import { reportingLineageIds } from '@/domain/chart/spotlight';
 
 const nodeTypes = { position: PositionNode };
 
+function positionsStorageKey(chartId: string) {
+  return `opply:chart-positions:${chartId}`;
+}
+
+function readPinnedPositions(chartId: string): Record<string, ChartPoint> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage.getItem(positionsStorageKey(chartId));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, ChartPoint>;
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writePinnedPositions(chartId: string, pinned: Record<string, ChartPoint>) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (Object.keys(pinned).length === 0) {
+      window.localStorage.removeItem(positionsStorageKey(chartId));
+      return;
+    }
+    window.localStorage.setItem(positionsStorageKey(chartId), JSON.stringify(pinned));
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
 interface GraphResponse {
   nodes: ChartNodeModel[];
   edges: ChartEdgeModel[];
@@ -45,7 +74,7 @@ interface GraphResponse {
   locations: Array<{ id: string; name: string }>;
   groups: Array<{ id: string; name: string; kind: string; colour: string | null }>;
   totals: { positions: number; rendered: number; vacant: number };
-  chart: { name: string } | null;
+  chart: { id?: string; name: string } | null;
   scenario: { id: string; name: string } | null;
 }
 
@@ -95,6 +124,11 @@ function ChartInner({ role }: { role: string }) {
   const fitOnce = useRef(false);
   const [canvasReady, setCanvasReady] = useState(false);
   const lastRevision = useRef<string | null>(null);
+  const [pinned, setPinned] = useState<Record<string, ChartPoint>>({});
+  const [layoutNonce, setLayoutNonce] = useState(0);
+  const pinnedRef = useRef(pinned);
+  const dragOrigin = useRef<{ id: string; position: ChartPoint } | null>(null);
+  pinnedRef.current = pinned;
 
   useEffect(() => {
     setCanvasReady(true);
@@ -165,10 +199,25 @@ function ChartInner({ role }: { role: string }) {
     lastRevision.current = presence.revision;
   }, [presence?.revision, queryClient]);
 
+  const chartId = data?.chart?.id ?? 'default';
+
+  const persistPinned = useCallback(
+    (next: Record<string, ChartPoint>) => {
+      pinnedRef.current = next;
+      setPinned(next);
+      writePinnedPositions(chartId, next);
+    },
+    [chartId],
+  );
+
+  useEffect(() => {
+    persistPinned(readPinnedPositions(chartId));
+  }, [chartId, persistPinned]);
+
   useEffect(() => {
     if (!data || surface !== 'hierarchy') return;
     let cancelled = false;
-    layoutChart(data.nodes, data.edges, layout).then((laid) => {
+    layoutChart(data.nodes, data.edges, layout, pinnedRef.current).then((laid) => {
       if (cancelled) return;
       setNodes(laid.nodes);
       setEdges(laid.edges);
@@ -188,7 +237,7 @@ function ChartInner({ role }: { role: string }) {
     return () => {
       cancelled = true;
     };
-  }, [data, layout, flow, focus, surface]);
+  }, [data, layout, flow, focus, surface, layoutNonce]);
 
   const lineage = useMemo(() => {
     if (!spotlight || !selectedId || !data) return null;
@@ -283,6 +332,10 @@ function ChartInner({ role }: { role: string }) {
     );
   }, []);
 
+  const onNodeDragStart = useCallback((_: unknown, node: Node) => {
+    dragOrigin.current = { id: node.id, position: { x: node.position.x, y: node.position.y } };
+  }, []);
+
   const onNodeDragStop = useCallback(
     (_: unknown, node: Node) => {
       if (!canEdit) return;
@@ -292,15 +345,20 @@ function ChartInner({ role }: { role: string }) {
         setPendingMove({ from: node.id, to: target.id });
         return;
       }
-      if (data) {
-        layoutChart(data.nodes, data.edges, layout).then((laid) => {
-          setNodes(laid.nodes);
-          setEdges(laid.edges);
-        });
-      }
+      persistPinned(snapshotNodePositions(flow.getNodes()));
     },
-    [canEdit, data, flow, layout],
+    [canEdit, flow, persistPinned],
   );
+
+  const restoreDragOrigin = useCallback(() => {
+    const origin = dragOrigin.current;
+    if (!origin) return;
+    setNodes((current) =>
+      current.map((item) =>
+        item.id === origin.id ? { ...item, position: { x: origin.position.x, y: origin.position.y } } : item,
+      ),
+    );
+  }, []);
 
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     setNodes((current) => applyNodeChanges(changes, current));
@@ -365,7 +423,7 @@ function ChartInner({ role }: { role: string }) {
           {canEdit ? (
             <p className="mt-1 text-xs text-[var(--muted-foreground)]">
               {mode === 'LIVE'
-                ? 'Live edit is on. Drag a card onto a manager to change reporting. Click a card to rename, add people, or remove a seat. Changes save to the database.'
+                ? 'Live edit is on. Drag cards to organise the chart — they stay where you put them. Drop a card onto a manager to change reporting. Auto layout rebuilds the tree.'
                 : 'Planning mode records a scenario overlay only. Switch to Live mode to edit the organisation database.'}
             </p>
           ) : (
@@ -385,7 +443,10 @@ function ChartInner({ role }: { role: string }) {
           persistView('hierarchy');
         }}
         layout={layout}
-        onLayout={setLayout}
+        onLayout={(next) => {
+          if (next !== layout) persistPinned({});
+          setLayout(next);
+        }}
         mode={mode}
         onMode={(next) => {
           setMode(next);
@@ -393,6 +454,10 @@ function ChartInner({ role }: { role: string }) {
         }}
         canEdit={canEdit}
         onFit={() => flow.fitView({ padding: 0.12, duration: 420 })}
+        onAutoLayout={() => {
+          persistPinned({});
+          setLayoutNonce((value) => value + 1);
+        }}
         surface={surface}
         onSurface={persistView}
         spotlight={spotlight}
@@ -438,14 +503,15 @@ function ChartInner({ role }: { role: string }) {
               onNodesChange={onNodesChange}
               onNodeClick={onNodeClick}
               onNodeDoubleClick={onNodeDoubleClick}
+              onNodeDragStart={onNodeDragStart}
               onNodeDragStop={onNodeDragStop}
               nodesDraggable={canEdit}
               nodesConnectable={false}
+              nodeDragThreshold={8}
               minZoom={0.15}
               maxZoom={1.6}
               onlyRenderVisibleElements
               proOptions={{ hideAttribution: true }}
-              fitView
             >
               <Background variant={BackgroundVariant.Dots} gap={22} size={1.15} color="rgba(255, 255, 255, 0.14)" />
               <MiniMap pannable zoomable maskColor="rgba(18, 0, 36, 0.72)" />
@@ -511,12 +577,7 @@ function ChartInner({ role }: { role: string }) {
         onOpenChange={(open) => {
           if (open) return;
           setPendingMove(null);
-          if (data) {
-            layoutChart(data.nodes, data.edges, layout).then((laid) => {
-              setNodes(laid.nodes);
-              setEdges(laid.edges);
-            });
-          }
+          restoreDragOrigin();
         }}
       >
         <DialogContent>
@@ -527,7 +588,10 @@ function ChartInner({ role }: { role: string }) {
               : 'This records a scenario change only. Live organisation data is not modified.'}
           </DialogDescription>
           <div className="mt-4 flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setPendingMove(null)}>
+            <Button variant="outline" onClick={() => {
+              restoreDragOrigin();
+              setPendingMove(null);
+            }}>
               Cancel
             </Button>
             <Button

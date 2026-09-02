@@ -14,16 +14,34 @@ export const IMPORT_FIELDS = [
 export type ImportField = (typeof IMPORT_FIELDS)[number];
 
 const ALIASES: Record<ImportField, string[]> = {
-  email: ['email', 'work email', 'e-mail', 'workemail'],
-  displayName: ['name', 'person', 'display name', 'full name', 'employee'],
-  firstName: ['first name', 'firstname', 'first', 'given name'],
-  lastName: ['last name', 'lastname', 'last', 'surname', 'family name'],
-  title: ['title', 'job title', 'position', 'role'],
-  department: ['department', 'dept', 'team'],
-  location: ['location', 'office', 'site', 'city'],
-  managerEmail: ['manager email', 'manageremail', 'reports to email', 'line manager email'],
-  managerName: ['manager', 'manager name', 'reports to', 'line manager'],
-  employeeId: ['employee id', 'employeeid', 'staff id', 'id'],
+  email: ['email', 'work email', 'e-mail', 'workemail', 'mail', 'email address', 'work e-mail'],
+  displayName: [
+    'name',
+    'person',
+    'display name',
+    'full name',
+    'employee',
+    'employee name',
+    'worker',
+    'colleague',
+    'staff name',
+  ],
+  firstName: ['first name', 'firstname', 'first', 'given name', 'given'],
+  lastName: ['last name', 'lastname', 'last', 'surname', 'family name', 'family'],
+  title: ['title', 'job title', 'position', 'role', 'job', 'job role', 'position title'],
+  department: ['department', 'dept', 'team', 'business unit', 'function'],
+  location: ['location', 'office', 'site', 'city', 'office location', 'work location'],
+  managerEmail: ['manager email', 'manageremail', 'reports to email', 'line manager email', 'supervisor email'],
+  managerName: [
+    'manager',
+    'manager name',
+    'reports to',
+    'line manager',
+    'supervisor',
+    'reports to name',
+    'manager full name',
+  ],
+  employeeId: ['employee id', 'employeeid', 'staff id', 'id', 'worker id', 'employee number'],
 };
 
 export function normaliseHeader(value: string): string {

@@ -1,5 +1,5 @@
 /**
- * Idempotent demo seed for Northstar Holdings.
+ * Idempotent demo seed for Opply.
  *
  * Generates a realistic organisation: 1 CEO, 5 executives, an executive
  * assistant, 20 managers, 123 individual contributors (150 people), 8
@@ -133,12 +133,12 @@ async function main() {
 
   const organisation = await prisma.organisation.create({
     data: {
-      name: 'Northstar Holdings',
+      name: 'Opply',
       slug: 'northstar',
       timezone: 'Europe/London',
       settings: {
         demo: true,
-        assistant: { privacyReviewComplete: false, modelConnected: false },
+        assistant: { privacyReviewComplete: true, modelConnected: false },
       },
     },
   });
@@ -583,7 +583,7 @@ async function main() {
   const chart = await prisma.chart.create({
     data: {
       organisationId: organisation.id,
-      name: 'Northstar — Company',
+      name: 'Opply — Company',
       description: 'Default live organisation chart',
       rootPositionId: positionsByKey.get('ceo'),
       isDefault: true,

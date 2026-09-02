@@ -31,6 +31,8 @@ const EnvSchema = z.object({
   DEEPSEEK_API_BASE_URL: z.string().default('https://api.deepseek.com'),
   SUPABASE_URL: z.string().optional(),
   SUPABASE_SERVICE_KEY: z.string().optional(),
+  SUPABASE_SECRET_KEY: z.string().optional(),
+  SUPABASE_PUBLISHABLE_KEY: z.string().optional(),
 });
 
 export type AppConfig = z.infer<typeof EnvSchema> & {
@@ -50,8 +52,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   }
 
   const data = parsed.data;
+  const supabaseServiceKey = data.SUPABASE_SERVICE_KEY || data.SUPABASE_SECRET_KEY;
   return {
     ...data,
+    SUPABASE_SERVICE_KEY: supabaseServiceKey,
     entraEnabled: Boolean(
       data.AUTH_MICROSOFT_ENTRA_ID_ID &&
         data.AUTH_MICROSOFT_ENTRA_ID_SECRET &&
