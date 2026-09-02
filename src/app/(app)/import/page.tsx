@@ -50,6 +50,12 @@ interface ImportSummary {
     errors: string[] | null;
   }>;
   counts: { total: number; new: number; invalid: number; duplicate: number; applied: number };
+  staged?: Array<{
+    rowNumber: number;
+    raw: Record<string, string>;
+    status: string;
+    errors: string[] | null;
+  }>;
   review?: {
     findings: Finding[];
     tree: TreeNode[];
@@ -111,10 +117,15 @@ export default function ImportPage() {
   const [agent, setAgent] = useState<AgentReview | null>(null);
   const [replaceExisting, setReplaceExisting] = useState(false);
   const [replacePromptOpen, setReplacePromptOpen] = useState(false);
+  const [staged, setStaged] = useState<NonNullable<ImportSummary['staged']>>([]);
 
   const review = useMutation({
-    mutationFn: async (jobId: string) => {
-      const response = await fetch(`/api/v1/imports/${jobId}/review`, { method: 'POST' });
+    mutationFn: async (input: { jobId: string; rows?: NonNullable<ImportSummary['staged']> }) => {
+      const response = await fetch(`/api/v1/imports/${input.jobId}/review`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ replaceExisting, rows: input.rows ?? staged }),
+      });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.message ?? 'Review failed');
       return payload as AgentReview;
@@ -149,9 +160,10 @@ export default function ImportPage() {
     },
     onSuccess: (payload) => {
       setResult(payload);
+      setStaged(payload.staged ?? payload.preview);
       setAgent(null);
       toast.success('Preview ready');
-      review.mutate(payload.job.id);
+      review.mutate({ jobId: payload.job.id, rows: payload.staged ?? payload.preview });
     },
     onError: (error: Error) => toast.error(error.message),
   });
@@ -162,7 +174,7 @@ export default function ImportPage() {
       const response = await fetch(`/api/v1/imports/${result.job.id}/apply`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ replaceExisting }),
+        body: JSON.stringify({ replaceExisting, rows: staged }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.message ?? 'Apply failed');
@@ -212,6 +224,7 @@ export default function ImportPage() {
       setColumnMap(suggestColumnMap(parsed.headers));
       setResult(null);
       setAgent(null);
+      setStaged([]);
       setReplaceExisting(false);
       setReplacePromptOpen(true);
     } catch {
@@ -428,7 +441,7 @@ export default function ImportPage() {
                 <>
                   <Button
                     variant="outline"
-                    onClick={() => review.mutate(result.job.id)}
+                    onClick={() => review.mutate({ jobId: result.job.id, rows: staged })}
                     disabled={review.isPending}
                   >
                     <Sparkles className="h-3.5 w-3.5" />

@@ -7,7 +7,9 @@ import { resolveColumnMap, type ImportField } from '@/domain/import/columns';
 import { mapImportRows } from '@/domain/import/validate';
 import { detectPrimaryCycle } from '@/domain/org/cycle';
 import { can, type Actor } from '@/domain/permissions/policy';
-import { assertWritable } from '@/demo/mode';
+import { assertWritable, isDemoMode } from '@/demo/mode';
+import { applyDemoImport } from '@/demo/northstar';
+import { getDemoImportJob, saveDemoImportJob, type DemoImportRow } from '@/demo/import-store';
 import { collectDeterministicReview } from '@/server/services/import-agent-service';
 import type { Prisma } from '@prisma/client';
 
@@ -43,7 +45,6 @@ export async function createImportJob(input: {
   if (!can(input.actor, 'people:write')) {
     throw new ForbiddenError();
   }
-  assertWritable();
   if (Buffer.byteLength(input.text, 'utf8') > config().IMPORT_MAX_BYTES) {
     throw new ValidationAppError('That file is larger than the import limit.');
   }
@@ -80,6 +81,31 @@ export async function createImportJob(input: {
   const staged = parsed.rows.map((raw, index) => ({ rowNumber: index + 2, raw }));
   const mapped = mapImportRows(staged, columnMap);
 
+  if (isDemoMode()) {
+    const job = saveDemoImportJob({
+      id: crypto.randomUUID(),
+      organisationId: input.organisationId,
+      fileName: input.fileName,
+      mimeType: input.mimeType || 'text/csv',
+      status: mapped.issues.length ? 'VALIDATED' : 'PREVIEWED',
+      columnMap,
+      createdCount: 0,
+      updatedCount: 0,
+      errorCount: 0,
+      createdAt: new Date().toISOString(),
+      rows: mapped.rows.map((row) => ({
+        id: crypto.randomUUID(),
+        rowNumber: row.rowNumber,
+        raw: row.values,
+        status: row.status,
+        errors: row.errors.length ? row.errors : null,
+      })),
+    });
+    return summariseDemoJob(job);
+  }
+
+  assertWritable();
+
   const job = await prisma.importJob.create({
     data: {
       organisationId: input.organisationId,
@@ -105,23 +131,83 @@ export async function createImportJob(input: {
 }
 
 export async function getImportJob(organisationId: string, id: string) {
+  if (isDemoMode()) {
+    const job = getDemoImportJob(id, organisationId);
+    if (!job) throw new NotFoundError('Import job not found.');
+    return summariseDemoJob(job);
+  }
   return summariseJob(id, organisationId);
+}
+
+export type StagedImportRow = {
+  rowNumber: number;
+  raw: Record<string, string>;
+  status: string;
+  errors?: string[] | null;
+};
+
+function asDemoRows(rows: StagedImportRow[]): DemoImportRow[] {
+  return rows.map((row) => ({
+    id: crypto.randomUUID(),
+    rowNumber: row.rowNumber,
+    raw: row.raw as Record<ImportField, string>,
+    status: row.status,
+    errors: row.errors ?? null,
+  }));
 }
 
 export async function applyImportJob(
   organisationId: string,
   actor: Actor,
   id: string,
-  options?: { replaceExisting?: boolean },
+  options?: { replaceExisting?: boolean; rows?: StagedImportRow[] },
 ) {
+  if (!can(actor, 'people:write')) {
+    throw new ForbiddenError();
+  }
+
+  if (isDemoMode()) {
+    let job = getDemoImportJob(id, organisationId);
+    if (!job && options?.rows?.length) {
+      job = saveDemoImportJob({
+        id,
+        organisationId,
+        fileName: 'uploaded.csv',
+        mimeType: 'text/csv',
+        status: 'PREVIEWED',
+        columnMap: {},
+        createdCount: 0,
+        updatedCount: 0,
+        errorCount: 0,
+        createdAt: new Date().toISOString(),
+        rows: asDemoRows(options.rows),
+      });
+    }
+    if (!job) throw new NotFoundError('Import job not found.');
+    if (job.status === 'COMPLETED' || job.status === 'APPLYING') {
+      throw new ConflictError('That import has already been applied.');
+    }
+    const validRows = job.rows.filter((row) => row.status === 'NEW');
+    if (validRows.length === 0) {
+      throw new ValidationAppError('There are no valid rows to apply.');
+    }
+    job.status = 'APPLYING';
+    const counts = applyDemoImport(validRows, Boolean(options?.replaceExisting));
+    job.status = 'COMPLETED';
+    job.createdCount = counts.createdCount;
+    job.updatedCount = counts.updatedCount;
+    job.errorCount = counts.errorCount;
+    for (const row of validRows) row.status = 'APPLIED';
+    return summariseDemoJob(job);
+  }
+
+  assertWritable();
+
   const job = await prisma.importJob.findFirst({
     where: { id, organisationId },
     include: { rows: { orderBy: { rowNumber: 'asc' } } },
   });
   if (!job) throw new NotFoundError('Import job not found.');
-  if (!can(actor, 'people:write')) {
-    throw new ForbiddenError();
-  }
   if (job.status === 'COMPLETED' || job.status === 'APPLYING') {
     throw new ConflictError('That import has already been applied.');
   }
@@ -362,18 +448,95 @@ export async function applyImportJob(
   return summariseJob(job.id);
 }
 
+function importCounts(rows: Array<{ status: string }>) {
+  const byStatus: Record<string, number> = {};
+  for (const row of rows) {
+    byStatus[row.status] = (byStatus[row.status] ?? 0) + 1;
+  }
+  return {
+    byStatus,
+    counts: {
+      total: rows.length,
+      new: byStatus.NEW ?? 0,
+      invalid: byStatus.INVALID ?? 0,
+      duplicate: byStatus.DUPLICATE ?? 0,
+      applied: byStatus.APPLIED ?? 0,
+    },
+  };
+}
+
+async function summariseDemoJob(job: import('@/demo/import-store').DemoImportJob) {
+  const { counts } = importCounts(job.rows);
+  let review: Awaited<ReturnType<typeof collectDeterministicReview>> = {
+    findings: [],
+    tree: [],
+    readyCount: counts.new,
+  };
+  if (job.status !== 'COMPLETED') {
+    try {
+      review = await collectDeterministicReview(job.organisationId, job.id, {
+        rows: job.rows,
+        replaceExisting: false,
+      });
+    } catch {
+      review = {
+        findings: [
+          {
+            severity: 'warning',
+            kind: 'data',
+            message: 'File preview is ready. Extra duplicate checks could not run.',
+          },
+        ],
+        tree: [],
+        readyCount: counts.new,
+      };
+    }
+  }
+  return {
+    job: {
+      id: job.id,
+      fileName: job.fileName,
+      status: job.status,
+      columnMap: job.columnMap,
+      createdCount: job.createdCount,
+      updatedCount: job.updatedCount,
+      errorCount: job.errorCount,
+      createdAt: job.createdAt,
+    },
+    preview: job.rows.slice(0, 25).map((row) => ({
+      rowNumber: row.rowNumber,
+      raw: row.raw,
+      status: row.status,
+      errors: row.errors,
+    })),
+    staged: job.rows.map((row) => ({
+      rowNumber: row.rowNumber,
+      raw: row.raw,
+      status: row.status,
+      errors: row.errors,
+    })),
+    counts,
+    review: {
+      findings: review.findings,
+      tree: review.tree.slice(0, 20),
+      warningCount: review.findings.filter((finding) => finding.severity === 'warning').length,
+      errorCount: review.findings.filter((finding) => finding.severity === 'error').length,
+    },
+  };
+}
+
 async function summariseJob(id: string, organisationId?: string) {
   const job = await prisma.importJob.findFirst({
     where: { id, ...(organisationId ? { organisationId } : {}) },
     include: { rows: { orderBy: { rowNumber: 'asc' }, take: 25 } },
   });
   if (!job) throw new NotFoundError('Import job not found.');
-  const counts = await prisma.importRow.groupBy({
+  const grouped = await prisma.importRow.groupBy({
     by: ['status'],
     where: { importJobId: id },
     _count: { _all: true },
   });
-  const byStatus = Object.fromEntries(counts.map((row) => [row.status, row._count._all]));
+  const byStatus = Object.fromEntries(grouped.map((row) => [row.status, row._count._all]));
   let review: Awaited<ReturnType<typeof collectDeterministicReview>> = {
     findings: [],
     tree: [],

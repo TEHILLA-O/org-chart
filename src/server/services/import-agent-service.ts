@@ -6,6 +6,7 @@ import { importPersonLabel } from '@/domain/import/validate';
 import { completeChat, parseJsonObject } from '@/server/llm/client';
 import { readAssistantSettings } from '@/server/services/assistant-service';
 import { isDemoMode } from '@/demo/mode';
+import { getDemoImportJob } from '@/demo/import-store';
 import { demoOrganisation, demoPeople } from '@/demo/northstar';
 
 export interface ImportTreeNode {
@@ -51,14 +52,28 @@ function asStringArray(value: unknown): string[] {
 export async function collectDeterministicReview(
   organisationId: string,
   jobId: string,
+  options?: {
+    rows?: Array<{ rowNumber: number; raw: unknown; status: string; errors: unknown }>;
+    replaceExisting?: boolean;
+  },
 ): Promise<{ findings: ImportFinding[]; tree: ImportTreeNode[]; readyCount: number }> {
-  const job = await prisma.importJob.findFirst({
-    where: { id: jobId, organisationId },
-    include: { rows: { orderBy: { rowNumber: 'asc' } } },
-  });
-  if (!job) throw new NotFoundError('Import job not found.');
+  let sourceRows = options?.rows;
+  if (!sourceRows) {
+    if (isDemoMode()) {
+      const demoJob = getDemoImportJob(jobId, organisationId);
+      if (!demoJob) throw new NotFoundError('Import job not found.');
+      sourceRows = demoJob.rows;
+    } else {
+      const job = await prisma.importJob.findFirst({
+        where: { id: jobId, organisationId },
+        include: { rows: { orderBy: { rowNumber: 'asc' } } },
+      });
+      if (!job) throw new NotFoundError('Import job not found.');
+      sourceRows = job.rows;
+    }
+  }
 
-  const rows = job.rows.map((row) => ({
+  const rows = sourceRows.map((row) => ({
     rowNumber: row.rowNumber,
     values: asValues(row.raw),
     status: row.status,
@@ -66,15 +81,17 @@ export async function collectDeterministicReview(
   }));
   const findings = fileStructureFindings(rows);
 
-  const existing = isDemoMode()
-    ? demoPeople.map((person) => ({
-        displayName: person.displayName,
-        email: person.email,
-      }))
-    : await prisma.person.findMany({
-        where: { organisationId, deletedAt: null },
-        select: { displayName: true, email: true },
-      });
+  const existing = options?.replaceExisting
+    ? []
+    : isDemoMode()
+      ? demoPeople.map((person) => ({
+          displayName: person.displayName,
+          email: person.email,
+        }))
+      : await prisma.person.findMany({
+          where: { organisationId, deletedAt: null },
+          select: { displayName: true, email: true },
+        });
   const byEmail = new Map(
     existing.filter((person) => person.email).map((person) => [person.email!.toLowerCase(), person.displayName]),
   );
@@ -133,12 +150,16 @@ export async function collectDeterministicReview(
 export async function reviewImportWithAgent(
   organisationId: string,
   jobId: string,
+  options?: {
+    rows?: Array<{ rowNumber: number; raw: unknown; status: string; errors: unknown }>;
+    replaceExisting?: boolean;
+  },
 ): Promise<ImportAgentReview> {
   const organisation = isDemoMode()
     ? demoOrganisation()
     : await prisma.organisation.findFirst({ where: { id: organisationId } });
   const settings = readAssistantSettings(organisation?.settings);
-  const local = await collectDeterministicReview(organisationId, jobId);
+  const local = await collectDeterministicReview(organisationId, jobId, options);
   const applyBlockers = local.findings
     .filter((finding) => finding.severity === 'error')
     .map((finding) => (finding.rowNumber ? `Row ${finding.rowNumber}: ${finding.message}` : finding.message));
@@ -164,24 +185,31 @@ export async function reviewImportWithAgent(
     };
   }
 
-  const job = await prisma.importJob.findFirst({
-    where: { id: jobId, organisationId },
-    include: { rows: { orderBy: { rowNumber: 'asc' }, take: 180 } },
-  });
-  if (!job) throw new NotFoundError('Import job not found.');
+  const demoJob = isDemoMode() ? getDemoImportJob(jobId, organisationId) : null;
+  const prismaJob =
+    demoJob || options?.rows
+      ? null
+      : await prisma.importJob.findFirst({
+          where: { id: jobId, organisationId },
+          include: { rows: { orderBy: { rowNumber: 'asc' }, take: 180 } },
+        });
+  const sourceRows = options?.rows ?? demoJob?.rows ?? prismaJob?.rows;
+  if (!sourceRows) throw new NotFoundError('Import job not found.');
 
-  const existingLines = isDemoMode()
-    ? demoPeople.slice(0, 40).map((person) => `${person.displayName}`)
-    : (
-        await prisma.person.findMany({
-          where: { organisationId, deletedAt: null },
-          select: { displayName: true },
-          take: 80,
-          orderBy: { displayName: 'asc' },
-        })
-      ).map((person) => person.displayName);
+  const existingLines = options?.replaceExisting
+    ? []
+    : isDemoMode()
+      ? demoPeople.slice(0, 40).map((person) => `${person.displayName}`)
+      : (
+          await prisma.person.findMany({
+            where: { organisationId, deletedAt: null },
+            select: { displayName: true },
+            take: 80,
+            orderBy: { displayName: 'asc' },
+          })
+        ).map((person) => person.displayName);
 
-  const importLines = job.rows.map((row) => {
+  const importLines = sourceRows.slice(0, 180).map((row) => {
     const values = asValues(row.raw);
     const label = importPersonLabel(values) || `Row ${row.rowNumber}`;
     return `Row ${row.rowNumber} [${row.status}]: ${label}, title ${values.title || 'missing'}, department ${values.department || 'none'}, reports to ${values.managerName || 'none'}.`;
