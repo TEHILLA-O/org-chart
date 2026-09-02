@@ -18,6 +18,14 @@ describe('suggestColumnMap', () => {
     expect(map.title).toBe('Job Title');
     expect(map.managerName).toBe('Reports To');
   });
+
+  it('matches legal-name style exports without reusing manager', () => {
+    const map = suggestColumnMap(['Legal Name', 'Business Title', 'Manager Name', 'Work Email']);
+    expect(map.displayName).toBe('Legal Name');
+    expect(map.title).toBe('Business Title');
+    expect(map.managerName).toBe('Manager Name');
+    expect(map.email).toBe('Work Email');
+  });
 });
 
 describe('mapImportRows', () => {

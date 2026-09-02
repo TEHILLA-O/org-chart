@@ -1,14 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useMutation } from '@tanstack/react-query';
-import { AlertTriangle, CheckCircle2, Sparkles } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, FileUp, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { Select, SelectItem } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { decodeSpreadsheetBytes, isSpreadsheetWorkbookName, parseCsv } from '@/lib/csv';
+import {
+  IMPORT_FIELD_LABELS,
+  IMPORT_FIELDS,
+  suggestColumnMap,
+  type ImportField,
+} from '@/domain/import/columns';
+import { cn } from '@/lib/utils';
 
 interface Finding {
   severity: 'error' | 'warning' | 'info';
@@ -72,8 +80,32 @@ Ben Cycle,Director,Ops,London,Ada Cycle,ben.cycle@example.com
 No Title,,Ops,London,Amelia Shah,notitle@example.com
 `;
 
+const MAPPING_FIELDS: ImportField[] = [
+  'displayName',
+  'title',
+  'email',
+  'managerName',
+  'department',
+  'location',
+  'firstName',
+  'lastName',
+  'employeeId',
+];
+
+function emptyColumnMap(): Record<ImportField, string | null> {
+  return Object.fromEntries(IMPORT_FIELDS.map((field) => [field, null])) as Record<
+    ImportField,
+    string | null
+  >;
+}
+
 export default function ImportPage() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [headers, setHeaders] = useState<string[]>([]);
+  const [rowCount, setRowCount] = useState(0);
+  const [columnMap, setColumnMap] = useState<Record<ImportField, string | null>>(emptyColumnMap);
+  const [dragging, setDragging] = useState(false);
   const [result, setResult] = useState<ImportSummary | null>(null);
   const [agent, setAgent] = useState<AgentReview | null>(null);
 
@@ -103,9 +135,10 @@ export default function ImportPage() {
 
   const upload = useMutation({
     mutationFn: async () => {
-      if (!file) throw new Error('Choose a CSV file first.');
+      if (!file) throw new Error('Choose a CSV file from your computer first.');
       const body = new FormData();
       body.append('file', file);
+      body.append('columnMap', JSON.stringify(columnMap));
       const response = await fetch('/api/v1/imports', { method: 'POST', body });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.message ?? 'Import failed');
@@ -147,38 +180,159 @@ export default function ImportPage() {
     URL.revokeObjectURL(url);
   };
 
+  async function loadLocalFile(next: File | undefined) {
+    if (!next) return;
+    if (isSpreadsheetWorkbookName(next.name)) {
+      toast.error('Save the Excel workbook as CSV, then upload that file.');
+      return;
+    }
+    try {
+      const text = decodeSpreadsheetBytes(new Uint8Array(await next.arrayBuffer()));
+      const parsed = parseCsv(text);
+      if (parsed.headers.length === 0) {
+        toast.error('No header row found in that CSV.');
+        return;
+      }
+      if (parsed.rows.length === 0) {
+        toast.error('The CSV has headers but no data rows.');
+        return;
+      }
+      setFile(next);
+      setHeaders(parsed.headers);
+      setRowCount(parsed.rows.length);
+      setColumnMap(suggestColumnMap(parsed.headers));
+      setResult(null);
+      setAgent(null);
+    } catch {
+      toast.error('Could not read that file. Save it as CSV and try again.');
+    }
+  }
+
   const findings = agent?.findings ?? result?.review?.findings ?? [];
   const tree = agent?.tree ?? result?.review?.tree ?? [];
   const errors = findings.filter((item) => item.severity === 'error');
   const warnings = findings.filter((item) => item.severity === 'warning');
+  const hasName = Boolean(columnMap.displayName || columnMap.firstName || columnMap.email);
+  const canPreview = Boolean(file && hasName && columnMap.title);
 
   return (
     <div className="space-y-4">
       <div>
         <h1 className="text-2xl font-semibold">CSV import</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
-          Upload people and seats. The import agent checks errors and duplicates, then DeepSeek explains how the
-          chart would be organised. Managers are matched by name or email after every row is created.
+          Upload your own CSV from your computer. Map the columns if the headers are different, then preview
+          before applying to the live organisation.
         </p>
       </div>
 
       <Card className="space-y-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[16rem] flex-1">
-            <Label htmlFor="csv-file">CSV file</Label>
-            <input
-              id="csv-file"
-              type="file"
-              accept=".csv,text/csv,application/vnd.ms-excel"
-              className="mt-2 block w-full text-sm"
-              onChange={(event) => {
-                setFile(event.target.files?.[0] ?? null);
-                setResult(null);
-                setAgent(null);
-              }}
-            />
+        <input
+          ref={fileInputRef}
+          id="csv-file"
+          type="file"
+          accept=".csv,.txt,text/csv,text/plain,application/vnd.ms-excel"
+          className="sr-only"
+          onChange={(event) => {
+            void loadLocalFile(event.target.files?.[0]);
+            event.target.value = '';
+          }}
+        />
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              fileInputRef.current?.click();
+            }
+          }}
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setDragging(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'copy';
+            setDragging(true);
+          }}
+          onDragLeave={(event) => {
+            if (event.currentTarget.contains(event.relatedTarget as Node)) return;
+            setDragging(false);
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            setDragging(false);
+            void loadLocalFile(event.dataTransfer.files[0]);
+          }}
+          className={cn(
+            'flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed px-4 py-10 text-center transition-colors',
+            dragging
+              ? 'border-[#22d3ee] bg-[#22d3ee]/10'
+              : 'border-white/20 bg-white/5 hover:border-white/40 hover:bg-white/8',
+          )}
+        >
+          <FileUp className="h-8 w-8 text-[#67e8f9]" />
+          {file ? (
+            <>
+              <p className="mt-3 text-sm font-medium text-white">{file.name}</p>
+              <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+                {rowCount} row{rowCount === 1 ? '' : 's'} · {headers.length} column
+                {headers.length === 1 ? '' : 's'} · click or drop another CSV to replace
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="mt-3 text-sm font-medium text-white">Drop your CSV here, or click to choose a file</p>
+              <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+                Use a .csv export from Excel, Google Sheets, Rippling, or any HR system
+              </p>
+            </>
+          )}
+        </div>
+
+        {headers.length ? (
+          <div className="space-y-3">
+            <p className="text-xs tracking-wide text-[var(--muted-foreground)] uppercase">
+              Match your columns
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {MAPPING_FIELDS.map((field) => (
+                <label key={field} className="space-y-1 text-xs">
+                  <span className="text-[var(--muted-foreground)]">
+                    {IMPORT_FIELD_LABELS[field]}
+                    {field === 'displayName' || field === 'title' ? ' *' : ''}
+                  </span>
+                  <Select
+                    value={columnMap[field] ?? ''}
+                    onValueChange={(value) =>
+                      setColumnMap((current) => ({ ...current, [field]: value || null }))
+                    }
+                    className="w-full min-w-0"
+                  >
+                    <SelectItem value="">Not in this file</SelectItem>
+                    {headers.map((header) => (
+                      <SelectItem key={`${field}-${header}`} value={header}>
+                        {header}
+                      </SelectItem>
+                    ))}
+                  </Select>
+                </label>
+              ))}
+            </div>
+            {!canPreview ? (
+              <p className="text-xs text-[#fecdd3]">
+                Map at least a name (or email) and a job title before previewing.
+              </p>
+            ) : null}
           </div>
-          <Button onClick={() => upload.mutate()} disabled={!file || upload.isPending}>
+        ) : null}
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={() => fileInputRef.current?.click()} variant="secondary">
+            Choose CSV
+          </Button>
+          <Button onClick={() => upload.mutate()} disabled={!canPreview || upload.isPending}>
             {upload.isPending ? 'Reading…' : 'Preview and review'}
           </Button>
           <Button variant="outline" onClick={() => downloadCsv(SAMPLE_CSV, 'orgpulse-import-sample.csv')}>
@@ -188,10 +342,6 @@ export default function ImportPage() {
             Sample with warnings
           </Button>
         </div>
-        <p className="text-xs text-[var(--muted-foreground)]">
-          Expected headers: Person, Title, Department, Location, Manager, Email. Excel workbooks must be saved as CSV
-          first. DeepSeek never receives emails — only names, titles, departments, and reporting lines.
-        </p>
       </Card>
 
       {result ? (
