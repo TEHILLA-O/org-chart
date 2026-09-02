@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { csvEscape, parseCsv, sanitiseSpreadsheetText, toCsv } from './csv';
+import { csvEscape, decodeSpreadsheetBytes, parseCsv, sanitiseSpreadsheetText, toCsv } from './csv';
 
 describe('csvEscape', () => {
   it('leaves ordinary text unquoted', () => {
@@ -33,6 +33,21 @@ describe('parseCsv', () => {
     expect(parsed.headers).toEqual(['Person', 'Title', 'Manager']);
     expect(parsed.rows[0]?.Person).toBe('Sam Imported');
     expect(parsed.rows[0]?.Title).toBe('Analyst');
+  });
+
+  it('decodes UTF-16 LE Excel unicode text', () => {
+    const text = 'Name,Title\nAda,CTO';
+    const bytes = new Uint8Array(2 + text.length * 2);
+    bytes[0] = 0xff;
+    bytes[1] = 0xfe;
+    for (let index = 0; index < text.length; index += 1) {
+      const code = text.charCodeAt(index);
+      bytes[2 + index * 2] = code & 0xff;
+      bytes[3 + index * 2] = code >> 8;
+    }
+    const parsed = parseCsv(decodeSpreadsheetBytes(bytes));
+    expect(parsed.headers).toEqual(['Name', 'Title']);
+    expect(parsed.rows[0]?.Name).toBe('Ada');
   });
 });
 

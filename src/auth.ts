@@ -4,6 +4,7 @@ import MicrosoftEntraID from 'next-auth/providers/microsoft-entra-id';
 import { compare } from 'bcryptjs';
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
+import { config } from '@/lib/config';
 import { logger } from '@/lib/logger';
 import type { OrgRole } from '@prisma/client';
 
@@ -20,6 +21,7 @@ const entraConfigured = Boolean(
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
+  secret: config().AUTH_SECRET,
   session: { strategy: 'jwt', maxAge: 60 * 60 * 12 },
   pages: {
     signIn: '/login',

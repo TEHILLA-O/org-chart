@@ -106,13 +106,17 @@ export async function requireOrgContext(
     assertCan(guest.actor, action);
     return guest;
   }
-  const session = await auth();
-  if (session?.user?.id) {
-    return contextFromSession(
-      { userId: session.user.id, email: session.user.email ?? '' },
-      organisationId,
-      action,
-    );
+  let session: { userId: string; email: string } | null = null;
+  try {
+    const current = await auth();
+    if (current?.user?.id) {
+      session = { userId: current.user.id, email: current.user.email ?? '' };
+    }
+  } catch {
+    session = null;
+  }
+  if (session) {
+    return contextFromSession(session, organisationId, action);
   }
 
   const guest = await guestContext();

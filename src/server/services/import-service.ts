@@ -1,9 +1,9 @@
 import { prisma } from '@/lib/db';
-import { parseCsv } from '@/lib/csv';
+import { isSpreadsheetWorkbookName, parseCsv } from '@/lib/csv';
 import { config } from '@/lib/config';
 import { getCorrelationId } from '@/lib/correlation';
 import { ValidationAppError, NotFoundError, ConflictError, ForbiddenError } from '@/lib/errors';
-import { suggestColumnMap, type ImportField } from '@/domain/import/columns';
+import { resolveColumnMap, type ImportField } from '@/domain/import/columns';
 import { mapImportRows } from '@/domain/import/validate';
 import { detectPrimaryCycle } from '@/domain/org/cycle';
 import { can, type Actor } from '@/domain/permissions/policy';
@@ -18,6 +18,7 @@ export async function createImportJob(input: {
   fileName: string;
   mimeType: string;
   text: string;
+  columnMap?: unknown;
 }) {
   if (!can(input.actor, 'people:write')) {
     throw new ForbiddenError();
@@ -26,11 +27,22 @@ export async function createImportJob(input: {
   if (Buffer.byteLength(input.text, 'utf8') > config().IMPORT_MAX_BYTES) {
     throw new ValidationAppError('That file is larger than the import limit.');
   }
-  if (!input.fileName.toLowerCase().endsWith('.csv')) {
-    const mime = (input.mimeType || '').toLowerCase();
-    if (!mime.includes('csv') && mime !== 'application/vnd.ms-excel') {
-      throw new ValidationAppError('Upload a CSV file. Save Excel workbooks as CSV first.');
-    }
+  if (isSpreadsheetWorkbookName(input.fileName)) {
+    throw new ValidationAppError('Upload a CSV file. Save Excel workbooks as CSV first.');
+  }
+  const mime = (input.mimeType || '').toLowerCase();
+  const name = input.fileName.toLowerCase();
+  const looksLikeCsv =
+    name.endsWith('.csv') ||
+    name.endsWith('.txt') ||
+    mime.includes('csv') ||
+    mime === 'text/plain' ||
+    mime === 'application/vnd.ms-excel' ||
+    mime === 'application/octet-stream' ||
+    mime === '' ||
+    /[,\t;]/.test(input.text.split(/\r?\n/, 1)[0] ?? '');
+  if (!looksLikeCsv) {
+    throw new ValidationAppError('Upload a CSV file from your computer. Save Excel workbooks as CSV first.');
   }
 
   const parsed = parseCsv(input.text);
@@ -44,7 +56,7 @@ export async function createImportJob(input: {
     throw new ValidationAppError(`CSV imports are limited to ${MAX_ROWS} rows.`);
   }
 
-  const columnMap = suggestColumnMap(parsed.headers);
+  const columnMap = resolveColumnMap(parsed.headers, input.columnMap);
   const staged = parsed.rows.map((raw, index) => ({ rowNumber: index + 2, raw }));
   const mapped = mapImportRows(staged, columnMap);
 
