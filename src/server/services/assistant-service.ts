@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db';
 import { buildReportingGraph } from '@/domain/org/graph';
 import { loadOrganisationGraph, loadOrgGroups } from '@/repositories/org-repository';
-import { completeChat, isDeepSeekConfigured, type ChatMessage } from '@/server/llm/deepseek';
+import { completeChat, isAiConfigured, type ChatMessage } from '@/server/llm/client';
 import { ValidationAppError } from '@/lib/errors';
 import { isDemoMode } from '@/demo/mode';
 import { demoOrganisation } from '@/demo/northstar';
@@ -17,7 +17,7 @@ export interface AssistantSettings {
 export function readAssistantSettings(_settings?: unknown): AssistantSettings {
   return {
     privacyReviewComplete: true,
-    modelConnected: isDeepSeekConfigured(),
+    modelConnected: isAiConfigured(),
   };
 }
 
@@ -82,8 +82,8 @@ export async function lookupEmployeeBrief(organisationId: string, query: string)
     privacyLocked: false,
     modelConnected: settings.modelConnected,
     message: settings.modelConnected
-      ? 'DeepSeek is connected. Lookup uses stored seats; Ask sends names, titles, managers, groups, and skills — never emails or HR fields.'
-      : 'No DeepSeek key is configured. Lookup still uses stored organisation facts.',
+      ? 'The AI agent is connected. Lookup uses stored seats; Ask sends names, titles, managers, groups, and skills — never emails or HR fields.'
+      : 'No AI key is configured. Lookup still uses stored organisation facts.',
     matches: matches.slice(0, 20),
   };
 }
@@ -94,7 +94,7 @@ export async function askOrganisation(organisationId: string, question: string, 
     : await prisma.organisation.findFirst({ where: { id: organisationId } });
   const settings = readAssistantSettings(organisation?.settings);
   if (!settings.modelConnected) {
-    throw new ValidationAppError('Add DEEPSEEK_API_KEY to the environment to enable Ask.');
+    throw new ValidationAppError('Add an AI key to enable Ask.');
   }
   const trimmed = question.trim();
   if (trimmed.length < 3) {
@@ -126,7 +126,7 @@ export async function askOrganisation(organisationId: string, question: string, 
   ];
 
   const actions: AssistantAction[] = [];
-  let model = 'deepseek-chat';
+  let model = 'AI agent';
   for (let round = 0; round < 6; round += 1) {
     const turn = await completeChat({ messages, tools, temperature: 0.1 });
     model = turn.model;

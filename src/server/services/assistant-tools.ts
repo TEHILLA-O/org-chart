@@ -1,4 +1,4 @@
-import type { ChatTool } from '@/server/llm/deepseek';
+import type { ChatTool } from '@/server/llm/client';
 import { can, type Actor } from '@/domain/permissions/policy';
 import { listObjectives } from '@/server/services/okr-service';
 import { addSeat, removeSeat, updateSeat } from '@/server/services/chart-edit-service';

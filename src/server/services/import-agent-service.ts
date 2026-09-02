@@ -3,7 +3,7 @@ import { NotFoundError } from '@/lib/errors';
 import type { ImportField } from '@/domain/import/columns';
 import { fileStructureFindings, type ImportFinding } from '@/domain/import/structure';
 import { importPersonLabel } from '@/domain/import/validate';
-import { completeChat, parseJsonObject } from '@/server/llm/deepseek';
+import { completeChat, parseJsonObject } from '@/server/llm/client';
 import { readAssistantSettings } from '@/server/services/assistant-service';
 import { isDemoMode } from '@/demo/mode';
 import { demoOrganisation, demoPeople } from '@/demo/northstar';
@@ -160,7 +160,7 @@ export async function reviewImportWithAgent(
   if (!settings.modelConnected) {
     return {
       ...base,
-      summary: `${base.summary} Add DEEPSEEK_API_KEY to let the agent explain structure and extra duplicates.`,
+      summary: `${base.summary} Add an AI key to let the agent explain structure and extra duplicates.`,
     };
   }
 
@@ -256,7 +256,7 @@ export async function reviewImportWithAgent(
   } catch (error) {
     return {
       ...base,
-      summary: `${base.summary} DeepSeek could not add a review (${error instanceof Error ? error.message : 'request failed'}), so only file checks are shown.`,
+      summary: `${base.summary} The AI agent could not add a review (${error instanceof Error ? error.message : 'request failed'}), so only file checks are shown.`,
     };
   }
 }

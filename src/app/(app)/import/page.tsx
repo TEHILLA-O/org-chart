@@ -125,9 +125,9 @@ export default function ImportPage() {
           `${errors} error${errors === 1 ? '' : 's'}, ${warnings} warning${warnings === 1 ? '' : 's'} on this file.`,
         );
       } else if (!payload.modelConnected) {
-        toast.success('File checks passed. Add DEEPSEEK_API_KEY to enable the import agent.');
+        toast.success('File checks passed. Add an AI key to enable the import agent.');
       } else {
-        toast.success('DeepSeek found no extra issues.');
+        toast.success('The AI agent found no extra issues.');
       }
     },
     onError: (error: Error) => toast.error(error.message),
@@ -366,7 +366,7 @@ export default function ImportPage() {
                     disabled={review.isPending}
                   >
                     <Sparkles className="h-3.5 w-3.5" />
-                    {review.isPending ? 'Reviewing…' : 'Ask DeepSeek again'}
+                    {review.isPending ? 'Reviewing…' : 'Ask the AI agent again'}
                   </Button>
                   <Button
                     onClick={() => apply.mutate()}
@@ -435,8 +435,7 @@ export default function ImportPage() {
             <div className="rounded-2xl border border-[#22d3ee]/25 bg-[#22d3ee]/8 p-4">
               <p className="flex items-center gap-2 text-sm font-semibold text-[#67e8f9]">
                 <Sparkles className="h-4 w-4" />
-                {agent?.modelConnected ? 'DeepSeek import agent' : 'Import checks'}
-                {agent?.model && agent.modelConnected ? ` · ${agent.model}` : ''}
+                {agent?.modelConnected ? 'AI import agent' : 'Import checks'}
               </p>
               <p className="mt-2 text-sm leading-relaxed">
                 {review.isPending && !agent
