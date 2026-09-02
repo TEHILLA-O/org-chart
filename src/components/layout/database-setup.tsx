@@ -2,7 +2,7 @@ export function DatabaseSetup({ message }: { message?: string }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#120024] p-6">
       <div className="max-w-lg rounded-3xl border border-white/15 bg-[rgba(28,8,62,0.72)] p-8 text-white shadow-[0_20px_50px_rgba(6,0,22,0.4)] backdrop-blur-xl">
-        <p className="text-[11px] font-semibold tracking-[0.28em] text-[#22d3ee] uppercase">Opply ochart</p>
+        <p className="text-[11px] font-semibold tracking-[0.28em] text-[#22d3ee] uppercase">Opply org chart</p>
         <h1 className="mt-3 text-2xl font-semibold tracking-tight">Connect a Postgres database</h1>
         <p className="mt-3 text-sm leading-relaxed text-[var(--muted-foreground)]">
           The Vercel build succeeded. The app still needs <code>DATABASE_URL</code> at runtime — that is why the

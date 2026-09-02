@@ -77,7 +77,7 @@ function PublicChartInner({ token, embed }: { token: string; embed?: boolean }) 
       {embed ? null : (
         <header className="flex items-center justify-between border-b border-white/10 bg-[rgba(18,0,36,0.55)] px-5 py-3 backdrop-blur-xl">
           <div>
-            <p className="text-[11px] font-semibold tracking-[0.22em] text-[#22d3ee] uppercase">Opply ochart</p>
+            <p className="text-[11px] font-semibold tracking-[0.22em] text-[#22d3ee] uppercase">Opply org chart</p>
             <p className="text-sm font-semibold">{data?.chart?.name ?? 'Shared chart'}</p>
           </div>
           <p className="text-xs text-[var(--muted-foreground)]">

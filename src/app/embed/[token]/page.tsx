@@ -1,7 +1,7 @@
 import { PublicChart } from '@/components/chart/public-chart';
 
 export const metadata = {
-  title: 'Embedded org chart · Opply ochart',
+  title: 'Embedded org chart · Opply org chart',
   robots: { index: false, follow: false },
 };
 
