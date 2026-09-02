@@ -18,14 +18,3 @@ export const GET = apiHandler('org:read', async (ctx) => {
     role: ctx.role,
   });
 });
-
-
-export const GET = apiHandler('org:read', async (ctx) => {
-  if (isDemoMode()) {
-    return json({ organisation: demoOrganisation(), role: ctx.role });
-  }
-  const organisation = await prisma.organisation.findFirst({
-    where: { id: ctx.organisationId, deletedAt: null },
-  });
-  return json({ organisation, role: ctx.role });
-});
