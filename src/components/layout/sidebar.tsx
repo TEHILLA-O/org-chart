@@ -61,7 +61,7 @@ export function AppSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const [assistantOn, setAssistantOn] = useState(false);
-  const [navMode, setNavMode] = useState<NavMode>('user');
+  const [navMode, setNavMode] = useState<NavMode>('dev');
   const [navModeReady, setNavModeReady] = useState(false);
 
   useEffect(() => {

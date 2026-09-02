@@ -1,4 +1,6 @@
 import type { OrgRole } from '@prisma/client';
+import type { ImportField } from '@/domain/import/columns';
+import { detectPrimaryCycle } from '@/domain/org/cycle';
 import type {
   AssignmentSnapshot,
   PersonSnapshot,
@@ -138,7 +140,7 @@ for (const seat of seats) {
   }
 }
 
-export const demoCeo = demoPeople.find((person) => person.displayName === 'Amelia Shah')!;
+export let demoCeo = demoPeople.find((person) => person.displayName === 'Amelia Shah')!;
 
 export function demoSession() {
   const role: OrgRole = 'OWNER';
@@ -479,5 +481,203 @@ export function demoDepartmentDetail(departmentId: string) {
       vacant: vacant.length,
     },
   };
+}
+
+function demoUid() {
+  return crypto.randomUUID();
+}
+
+function refreshDemoCeo() {
+  const root =
+    demoPeople.find((person) => {
+      const assignment = demoAssignments.find((row) => row.personId === person.id);
+      if (!assignment) return true;
+      return !demoRelationships.some((rel) => rel.subordinatePositionId === assignment.positionId);
+    }) ?? demoPeople[0];
+  if (root) demoCeo = root;
+}
+
+export function applyDemoImport(
+  rows: Array<{ raw: Record<string, string>; status: string }>,
+  replaceExisting: boolean,
+) {
+  if (replaceExisting) {
+    demoPeople.length = 0;
+    demoPositions.length = 0;
+    demoAssignments.length = 0;
+    demoRelationships.length = 0;
+    demoMemberships.length = 0;
+    demoDepartments.length = 0;
+    demoLocations.length = 0;
+  }
+
+  const peopleByEmail = new Map(
+    demoPeople.filter((person) => person.email).map((person) => [person.email!.toLowerCase(), person]),
+  );
+  const peopleByName = new Map(demoPeople.map((person) => [person.displayName.toLowerCase(), person]));
+  const deptByName = new Map(demoDepartments.map((item) => [item.name.toLowerCase(), item]));
+  const locByName = new Map(demoLocations.map((item) => [item.name.toLowerCase(), item]));
+  const positionByPersonId = new Map<string, string>();
+  for (const assignment of demoAssignments) {
+    positionByPersonId.set(assignment.personId, assignment.positionId);
+  }
+  const liveEdges = demoRelationships
+    .filter((rel) => rel.isPrimary)
+    .map((rel) => ({
+      subordinatePositionId: rel.subordinatePositionId,
+      managerPositionId: rel.managerPositionId,
+    }));
+
+  let createdCount = 0;
+  let updatedCount = 0;
+  let errorCount = 0;
+  const created: Array<{ personId: string; positionId: string; values: Record<ImportField, string> }> = [];
+
+  for (const row of rows) {
+    if (row.status !== 'NEW') continue;
+    const values = row.raw as Record<ImportField, string>;
+    try {
+      const email = values.email?.toLowerCase() || null;
+      const displayName =
+        values.displayName ||
+        [values.firstName, values.lastName].filter(Boolean).join(' ') ||
+        email ||
+        'Imported person';
+      const [firstName, ...rest] = displayName.split(' ');
+      const lastName = values.lastName || rest.join(' ') || firstName || 'Unknown';
+
+      let departmentId: string | null = null;
+      if (values.department) {
+        const existing = deptByName.get(values.department.toLowerCase());
+        if (existing) {
+          departmentId = existing.id;
+        } else {
+          const createdDept = {
+            id: demoUid(),
+            name: values.department,
+            code: values.department.slice(0, 8).toUpperCase(),
+            colour: '#22d3ee',
+            parentDepartmentId: null,
+          };
+          demoDepartments.push(createdDept);
+          deptByName.set(values.department.toLowerCase(), createdDept);
+          departmentId = createdDept.id;
+        }
+      }
+
+      let locationId: string | null = null;
+      if (values.location) {
+        const existing = locByName.get(values.location.toLowerCase());
+        if (existing) {
+          locationId = existing.id;
+        } else {
+          const createdLoc = {
+            id: demoUid(),
+            name: values.location,
+            country: '',
+            city: values.location,
+          };
+          demoLocations.push(createdLoc);
+          locByName.set(values.location.toLowerCase(), createdLoc);
+          locationId = createdLoc.id;
+        }
+      }
+
+      let person = email ? peopleByEmail.get(email) : peopleByName.get(displayName.toLowerCase());
+      if (!person) {
+        person = {
+          id: demoUid(),
+          displayName,
+          preferredName: null,
+          firstName: values.firstName || firstName || 'Imported',
+          lastName,
+          email,
+          phone: null,
+          profilePhotoUrl: `https://i.pravatar.cc/128?u=${email || displayName}`,
+          status: 'ACTIVE',
+          holidayRemainingDays: 18,
+          groupIds: [groups[0]!.id],
+          bio: null,
+          employeeId: values.employeeId || `IMP-${demoPeople.length + 1}`,
+          skills: [],
+        };
+        demoPeople.push(person);
+        if (email) peopleByEmail.set(email, person);
+        peopleByName.set(displayName.toLowerCase(), person);
+        demoMemberships.push({ personId: person.id, groupId: groups[0]!.id });
+        createdCount += 1;
+      } else {
+        updatedCount += 1;
+      }
+
+      let positionId = positionByPersonId.get(person.id);
+      if (!positionId) {
+        const position: PositionSnapshot = {
+          id: demoUid(),
+          title: values.title,
+          code: null,
+          departmentId,
+          locationId,
+          positionType: 'SINGLE',
+          employmentType: 'FULL_TIME',
+          status: 'ACTIVE',
+          sortOrder: null,
+        };
+        demoPositions.push(position);
+        demoAssignments.push({
+          id: demoUid(),
+          personId: person.id,
+          positionId: position.id,
+          isPrimary: true,
+          allocationPercentage: 100,
+          assignmentType: 'PERMANENT',
+          startDate: now,
+          endDate: null,
+        });
+        positionId = position.id;
+        positionByPersonId.set(person.id, position.id);
+      }
+
+      created.push({ personId: person.id, positionId, values });
+    } catch {
+      errorCount += 1;
+    }
+  }
+
+  const reportingToWrite: Array<{ subordinatePositionId: string; managerPositionId: string }> = [];
+  for (const item of created) {
+    const managerPerson =
+      (item.values.managerEmail ? peopleByEmail.get(item.values.managerEmail.toLowerCase()) : undefined) ??
+      (item.values.managerName ? peopleByName.get(item.values.managerName.toLowerCase()) : undefined);
+    const managerPositionId = managerPerson ? positionByPersonId.get(managerPerson.id) : undefined;
+    if (!managerPositionId || managerPositionId === item.positionId) continue;
+    const candidate = { subordinatePositionId: item.positionId, managerPositionId };
+    const cycle = detectPrimaryCycle([...liveEdges, ...reportingToWrite], candidate);
+    if (cycle.cyclic) {
+      errorCount += 1;
+      continue;
+    }
+    reportingToWrite.push(candidate);
+  }
+
+  for (const edge of reportingToWrite) {
+    const existingIndex = demoRelationships.findIndex(
+      (rel) => rel.subordinatePositionId === edge.subordinatePositionId && rel.isPrimary,
+    );
+    if (existingIndex >= 0) {
+      if (demoRelationships[existingIndex]?.managerPositionId === edge.managerPositionId) continue;
+      demoRelationships.splice(existingIndex, 1);
+    }
+    demoRelationships.push({
+      id: demoUid(),
+      subordinatePositionId: edge.subordinatePositionId,
+      managerPositionId: edge.managerPositionId,
+      relationshipType: 'PRIMARY',
+      isPrimary: true,
+    });
+  }
+
+  refreshDemoCeo();
+  return { createdCount, updatedCount, errorCount };
 }
 
