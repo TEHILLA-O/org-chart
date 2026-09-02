@@ -84,7 +84,7 @@ export function directoryToCsv(rows: DirectoryRow[]): string {
 
 export async function directoryToXlsx(rows: DirectoryRow[]): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = 'Opply ochart';
+  workbook.creator = 'Opply org chart';
   const sheet = workbook.addWorksheet('Directory', {
     views: [{ state: 'frozen', ySplit: 1 }],
   });

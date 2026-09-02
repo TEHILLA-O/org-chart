@@ -114,7 +114,7 @@ export function AppSidebar({
         {collapsed ? null : (
           <div className="min-w-0">
             <p className="text-sm font-semibold tracking-tight text-white">Opply</p>
-            <p className="truncate text-xs text-[#67e8f9]">ochart</p>
+            <p className="truncate text-xs text-[#67e8f9]">org chart</p>
           </div>
         )}
         <div

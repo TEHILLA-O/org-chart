@@ -10,7 +10,7 @@ const sans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Opply ochart',
+  title: 'Opply org chart',
   description: 'Organisational intelligence and interactive org charts',
 };
 
