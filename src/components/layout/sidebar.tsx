@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import type { LucideIcon } from 'lucide-react';
 import {
   LayoutDashboard,
@@ -22,6 +22,11 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+type NavMode = 'user' | 'dev';
+
+const NAV_MODE_KEY = 'opply:nav-mode';
+const DEV_ONLY_HREFS = ['/import', '/integrations', '/administration'] as const;
+
 const NAV: Array<{ href: string; label: string; icon: LucideIcon; badge?: string }> = [
   { href: '/dashboard', label: 'Home', icon: LayoutDashboard },
   { href: '/charts', label: 'Org chart', icon: Network },
@@ -38,6 +43,10 @@ const NAV: Array<{ href: string; label: string; icon: LucideIcon; badge?: string
   { href: '/administration', label: 'Admin', icon: Settings },
 ];
 
+function isDevOnlyPath(pathname: string) {
+  return DEV_ONLY_HREFS.some((href) => pathname === href || pathname.startsWith(`${href}/`));
+}
+
 export function AppSidebar({
   collapsed,
   onToggle,
@@ -50,7 +59,10 @@ export function AppSidebar({
   role: string;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [assistantOn, setAssistantOn] = useState(false);
+  const [navMode, setNavMode] = useState<NavMode>('user');
+  const [navModeReady, setNavModeReady] = useState(false);
 
   useEffect(() => {
     fetch('/api/v1/assistant')
@@ -61,6 +73,28 @@ export function AppSidebar({
       .catch(() => undefined);
   }, []);
 
+  useEffect(() => {
+    const stored = window.localStorage.getItem(NAV_MODE_KEY);
+    if (stored === 'dev' || stored === 'user') {
+      setNavMode(stored);
+    }
+    setNavModeReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!navModeReady) return;
+    if (navMode === 'user' && isDevOnlyPath(pathname)) {
+      router.replace('/dashboard');
+    }
+  }, [navMode, navModeReady, pathname, router]);
+
+  function chooseNavMode(next: NavMode) {
+    setNavMode(next);
+    window.localStorage.setItem(NAV_MODE_KEY, next);
+  }
+
+  const navItems = NAV.filter((item) => navMode === 'dev' || !isDevOnlyPath(item.href));
+
   return (
     <aside
       className={cn(
@@ -68,8 +102,13 @@ export function AppSidebar({
         collapsed ? 'w-[72px]' : 'w-[232px]',
       )}
     >
-      <div className={cn('flex items-center gap-3 px-4 pt-5 pb-4', collapsed && 'justify-center px-2')}>
-        <div className="motion-logo flex h-9 w-9 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#22d3ee,#e879f9)] text-sm font-bold text-[#120024]">
+      <div
+        className={cn(
+          'flex items-center gap-2 px-3 pt-5 pb-4',
+          collapsed ? 'flex-col justify-center px-2' : 'gap-3 px-3',
+        )}
+      >
+        <div className="motion-logo flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#22d3ee,#e879f9)] text-sm font-bold text-[#120024]">
           O
         </div>
         {collapsed ? null : (
@@ -78,9 +117,42 @@ export function AppSidebar({
             <p className="truncate text-xs text-[#67e8f9]">ochart</p>
           </div>
         )}
+        <div
+          role="group"
+          aria-label="Navigation mode"
+          className={cn(
+            'flex shrink-0 rounded-full bg-white/10 p-0.5',
+            collapsed ? 'flex-col' : 'ml-auto flex-col',
+          )}
+        >
+          <button
+            type="button"
+            aria-pressed={navMode === 'user'}
+            title="User mode"
+            onClick={() => chooseNavMode('user')}
+            className={cn(
+              'rounded-full px-2 py-1 text-[9px] leading-tight font-medium tracking-wide whitespace-nowrap transition-colors',
+              navMode === 'user' ? 'bg-white/20 text-white' : 'text-white/45 hover:text-white',
+            )}
+          >
+            {collapsed ? 'U' : 'User mode'}
+          </button>
+          <button
+            type="button"
+            aria-pressed={navMode === 'dev'}
+            title="Dev mode"
+            onClick={() => chooseNavMode('dev')}
+            className={cn(
+              'rounded-full px-2 py-1 text-[9px] leading-tight font-medium tracking-wide whitespace-nowrap transition-colors',
+              navMode === 'dev' ? 'bg-[#67e8f9]/25 text-[#67e8f9]' : 'text-white/45 hover:text-white',
+            )}
+          >
+            {collapsed ? 'D' : 'Dev mode'}
+          </button>
+        </div>
       </div>
       <nav className="flex-1 space-y-1 overflow-y-auto px-2.5 pb-3">
-        {NAV.map((item) => {
+        {navItems.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
           const badge = item.href === '/assistant' ? (assistantOn ? 'On' : 'Off') : item.badge;
