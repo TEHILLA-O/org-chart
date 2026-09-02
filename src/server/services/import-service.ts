@@ -9,8 +9,28 @@ import { detectPrimaryCycle } from '@/domain/org/cycle';
 import { can, type Actor } from '@/domain/permissions/policy';
 import { assertWritable } from '@/demo/mode';
 import { collectDeterministicReview } from '@/server/services/import-agent-service';
+import type { Prisma } from '@prisma/client';
 
 const MAX_ROWS = 2_000;
+
+async function clearOrganisationChart(tx: Prisma.TransactionClient, organisationId: string) {
+  await tx.chart.updateMany({ where: { organisationId }, data: { rootPositionId: null } });
+  await tx.department.updateMany({ where: { organisationId }, data: { headPositionId: null } });
+  await tx.objective.updateMany({ where: { organisationId }, data: { ownerPersonId: null } });
+  await tx.chartPresence.deleteMany({ where: { organisationId } });
+  await tx.reportingRelationship.deleteMany({ where: { organisationId } });
+  await tx.assignment.deleteMany({ where: { organisationId } });
+  await tx.personSkill.deleteMany({ where: { organisationId } });
+  await tx.personGroupMembership.deleteMany({ where: { organisationId } });
+  await tx.customFieldValue.deleteMany({ where: { person: { organisationId } } });
+  await tx.customFieldValue.deleteMany({ where: { position: { organisationId } } });
+  await tx.externalIdentity.deleteMany({ where: { organisationId } });
+  await tx.fieldProvenance.deleteMany({ where: { organisationId } });
+  await tx.position.deleteMany({ where: { organisationId } });
+  await tx.person.deleteMany({ where: { organisationId } });
+  await tx.department.deleteMany({ where: { organisationId } });
+  await tx.location.deleteMany({ where: { organisationId } });
+}
 
 export async function createImportJob(input: {
   organisationId: string;
@@ -88,7 +108,12 @@ export async function getImportJob(organisationId: string, id: string) {
   return summariseJob(id, organisationId);
 }
 
-export async function applyImportJob(organisationId: string, actor: Actor, id: string) {
+export async function applyImportJob(
+  organisationId: string,
+  actor: Actor,
+  id: string,
+  options?: { replaceExisting?: boolean },
+) {
   const job = await prisma.importJob.findFirst({
     where: { id, organisationId },
     include: { rows: { orderBy: { rowNumber: 'asc' } } },
@@ -142,6 +167,15 @@ export async function applyImportJob(organisationId: string, actor: Actor, id: s
 
   await prisma.$transaction(async (tx) => {
     await tx.importJob.update({ where: { id: job.id }, data: { status: 'APPLYING' } });
+    if (options?.replaceExisting) {
+      await clearOrganisationChart(tx, organisationId);
+      peopleByEmail.clear();
+      peopleByName.clear();
+      deptByName.clear();
+      locByName.clear();
+      positionByPersonId.clear();
+      liveEdges.length = 0;
+    }
     const createdPositionIds: Array<{ rowId: string; personId: string; positionId: string; values: Record<ImportField, string> }> = [];
 
     for (const row of validRows) {
@@ -312,7 +346,13 @@ export async function applyImportJob(organisationId: string, actor: Actor, id: s
         action: 'IMPORT_APPLIED',
         entityType: 'ImportJob',
         entityId: job.id,
-        newState: { createdCount, updatedCount, errorCount, fileName: job.fileName },
+        newState: {
+          createdCount,
+          updatedCount,
+          errorCount,
+          fileName: job.fileName,
+          replacedExisting: Boolean(options?.replaceExisting),
+        },
         source: 'CSV_IMPORT',
         correlationId: getCorrelationId(),
       },

@@ -1,3 +1,4 @@
+import { config } from '@/lib/config';
 import type { ConnectorAdapter, ConnectorConfig, ConnectorMetadata, ExternalPerson } from '../types';
 
 export const SUPABASE_METADATA: ConnectorMetadata = {
@@ -53,24 +54,34 @@ function supabaseApiUrl(raw?: string) {
 }
 
 function supabaseHeaders(key: string): Record<string, string> {
-  const headers: Record<string, string> = {
+  return {
     apikey: key,
+    authorization: `Bearer ${key}`,
     Accept: 'application/json',
     'User-Agent': 'Opply-ochart/1.0',
   };
-  if (!key.startsWith('sb_')) {
-    headers.authorization = `Bearer ${key}`;
-  }
-  return headers;
+}
+
+function resolveCredentials(cfg: ConnectorConfig, options?: { url?: string; apiKey?: string }) {
+  const stored = settings(cfg);
+  const env = config();
+  return {
+    url: supabaseApiUrl(stored.url || options?.url || env.SUPABASE_URL),
+    key:
+      stored.serviceKey ||
+      stored.anonKey ||
+      options?.apiKey ||
+      env.SUPABASE_SERVICE_KEY ||
+      env.SUPABASE_PUBLISHABLE_KEY,
+    table: stored.table || 'people',
+  };
 }
 
 export function createSupabaseConnector(options?: { url?: string; apiKey?: string }): ConnectorAdapter {
   return {
     getMetadata: () => SUPABASE_METADATA,
     testConnection: async (cfg) => {
-      const stored = settings(cfg);
-      const url = supabaseApiUrl(stored.url || options?.url);
-      const key = stored.serviceKey || stored.anonKey || options?.apiKey;
+      const { url, key, table } = resolveCredentials(cfg, options);
       if (!url || !key) {
         return {
           ok: true,
@@ -78,7 +89,6 @@ export function createSupabaseConnector(options?: { url?: string; apiKey?: strin
         };
       }
       try {
-        const table = stored.table || 'people';
         const headers = supabaseHeaders(key);
         const auth = await fetch(`${url}/rest/v1/`, { headers });
         if (auth.status === 401 || auth.status === 403) {
@@ -90,23 +100,29 @@ export function createSupabaseConnector(options?: { url?: string; apiKey?: strin
         const response = await fetch(`${url}/rest/v1/${table}?select=*&limit=1`, { headers });
         if (response.status === 404) {
           return {
-            ok: true,
-            message: `API key works. No "${table}" table is exposed yet, so directory import has nothing to pull.`,
+            ok: false,
+            message: `API key works, but there is no "${table}" table in public. Add that table, then pull again.`,
           };
         }
         if (!response.ok) {
           return { ok: false, message: `Supabase responded ${response.status}. Check the table name and key.` };
         }
-        return { ok: true, message: 'Supabase directory is reachable.' };
+        const rows = (await response.json()) as unknown[];
+        return {
+          ok: true,
+          message: `Supabase directory is reachable (${Array.isArray(rows) ? rows.length : 0} row${Array.isArray(rows) && rows.length === 1 ? '' : 's'} in this sample).`,
+        };
       } catch {
         return { ok: false, message: 'Could not reach that Supabase URL.' };
       }
     },
     authenticate: async () => ({ ok: true }),
     async *pullPeople(ctx) {
-      const stored = (ctx as unknown as { settings?: Record<string, unknown> }).settings ?? {};
-      void stored;
-      for (const person of MOCK_PEOPLE) {
+      const people = await pullSupabasePeople({
+        organisationId: ctx.organisationId,
+        settings: (ctx as { settings?: Record<string, unknown> }).settings,
+      });
+      for (const person of people) {
         yield person;
       }
     },
@@ -120,16 +136,16 @@ export function createSupabaseConnector(options?: { url?: string; apiKey?: strin
 }
 
 export async function pullSupabasePeople(cfg: ConnectorConfig): Promise<ExternalPerson[]> {
-  const stored = settings(cfg);
-  const url = supabaseApiUrl(stored.url);
-  const key = stored.serviceKey || stored.anonKey;
+  const { url, key, table } = resolveCredentials(cfg);
   if (!url || !key) {
     return MOCK_PEOPLE;
   }
-  const table = stored.table || 'people';
   const response = await fetch(`${url}/rest/v1/${table}?select=*`, {
     headers: supabaseHeaders(key),
   });
+  if (response.status === 404) {
+    throw new Error(`Supabase has no "${table}" table in the public schema.`);
+  }
   if (!response.ok) {
     throw new Error(`Supabase read failed (${response.status}).`);
   }

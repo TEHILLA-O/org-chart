@@ -84,8 +84,8 @@ export async function previewDirectorySource(organisationId: string, connectorId
         ...stored,
         url: stored.url ?? config().SUPABASE_URL,
         serviceKey: stored.serviceKey ?? config().SUPABASE_SERVICE_KEY,
-        anonKey: stored.anonKey,
-        table: stored.table,
+        anonKey: stored.anonKey ?? config().SUPABASE_PUBLISHABLE_KEY,
+        table: stored.table ?? 'people',
       },
     });
     return { people, connector: { id: connector.id, name: connector.name, provider: connector.provider } };

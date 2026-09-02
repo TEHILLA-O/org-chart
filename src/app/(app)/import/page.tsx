@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectItem } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import { decodeSpreadsheetBytes, isSpreadsheetWorkbookName, parseCsv } from '@/lib/csv';
 import {
   IMPORT_FIELD_LABELS,
@@ -108,6 +109,8 @@ export default function ImportPage() {
   const [dragging, setDragging] = useState(false);
   const [result, setResult] = useState<ImportSummary | null>(null);
   const [agent, setAgent] = useState<AgentReview | null>(null);
+  const [replaceExisting, setReplaceExisting] = useState(false);
+  const [replacePromptOpen, setReplacePromptOpen] = useState(false);
 
   const review = useMutation({
     mutationFn: async (jobId: string) => {
@@ -156,7 +159,11 @@ export default function ImportPage() {
   const apply = useMutation({
     mutationFn: async () => {
       if (!result) throw new Error('Upload a file first.');
-      const response = await fetch(`/api/v1/imports/${result.job.id}/apply`, { method: 'POST' });
+      const response = await fetch(`/api/v1/imports/${result.job.id}/apply`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ replaceExisting }),
+      });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.message ?? 'Apply failed');
       return payload as ImportSummary;
@@ -164,7 +171,9 @@ export default function ImportPage() {
     onSuccess: (payload) => {
       setResult(payload);
       toast.success(
-        `Imported ${payload.job.createdCount} new people, updated ${payload.job.updatedCount}.`,
+        replaceExisting
+          ? `Replaced the organisation with ${payload.job.createdCount} people from the CSV.`
+          : `Imported ${payload.job.createdCount} new people, updated ${payload.job.updatedCount}.`,
       );
     },
     onError: (error: Error) => toast.error(error.message),
@@ -203,6 +212,8 @@ export default function ImportPage() {
       setColumnMap(suggestColumnMap(parsed.headers));
       setResult(null);
       setAgent(null);
+      setReplaceExisting(false);
+      setReplacePromptOpen(true);
     } catch {
       toast.error('Could not read that file. Save it as CSV and try again.');
     }
@@ -221,9 +232,50 @@ export default function ImportPage() {
         <h1 className="text-2xl font-semibold">CSV import</h1>
         <p className="text-sm text-[var(--muted-foreground)]">
           Upload your own CSV from your computer. Map the columns if the headers are different, then preview
-          before applying to the live organisation.
+          before applying to the live organisation. After you choose a file, you can replace the current mock
+          org with this CSV, or keep the existing people and merge.
         </p>
       </div>
+
+      <Dialog open={replacePromptOpen} onOpenChange={setReplacePromptOpen}>
+        <DialogContent>
+          <DialogTitle>Switch off mock data?</DialogTitle>
+          <DialogDescription>
+            This organisation currently has seeded / mock people. Replace that chart with the uploaded CSV, or
+            keep the existing people and add or update rows from the file.
+          </DialogDescription>
+          {file ? (
+            <p className="mt-3 text-sm text-white">
+              {file.name}
+              <span className="text-[var(--muted-foreground)]">
+                {' '}
+                · {rowCount} row{rowCount === 1 ? '' : 's'}
+              </span>
+            </p>
+          ) : null}
+          <div className="mt-5 flex flex-wrap justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setReplaceExisting(false);
+                setReplacePromptOpen(false);
+                toast.message('Existing people will be kept. The CSV will merge on apply.');
+              }}
+            >
+              Keep mock data
+            </Button>
+            <Button
+              onClick={() => {
+                setReplaceExisting(true);
+                setReplacePromptOpen(false);
+                toast.message('Mock data will be removed when you apply this CSV.');
+              }}
+            >
+              Use this CSV instead
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Card className="space-y-4">
         <input
@@ -320,6 +372,20 @@ export default function ImportPage() {
                 </label>
               ))}
             </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {replaceExisting ? (
+                <p className="text-xs text-[#67e8f9]">
+                  Apply will switch off mock data and rebuild the org chart from this file only.
+                </p>
+              ) : (
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  Apply will keep existing people and merge matching rows (by email or name).
+                </p>
+              )}
+              <Button variant="outline" size="sm" onClick={() => setReplacePromptOpen(true)}>
+                Change
+              </Button>
+            </div>
             {!canPreview ? (
               <p className="text-xs text-[#fecdd3]">
                 Map at least a name (or email) and a job title before previewing.
@@ -372,7 +438,11 @@ export default function ImportPage() {
                     onClick={() => apply.mutate()}
                     disabled={apply.isPending || result.counts.new === 0}
                   >
-                    {apply.isPending ? 'Applying…' : `Apply ${result.counts.new} rows`}
+                    {apply.isPending
+                      ? 'Applying…'
+                      : replaceExisting
+                        ? `Replace mock data with ${result.counts.new} rows`
+                        : `Apply ${result.counts.new} rows`}
                   </Button>
                 </>
               ) : (
