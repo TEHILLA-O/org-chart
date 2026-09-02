@@ -5,19 +5,15 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { LucideIcon } from 'lucide-react';
 import {
-  Building2,
-  GitBranch,
   LayoutDashboard,
   MapPin,
   Network,
   Settings,
   Users,
-  Briefcase,
   Plug,
   LineChart,
   Layers,
   Sparkles,
-  Tags,
   PanelLeft,
   FileUp,
   Contact,
@@ -34,13 +30,9 @@ const NAV: Array<{ href: string; label: string; icon: LucideIcon; badge?: string
   { href: '/diagrams', label: 'Diagrams', icon: Workflow },
   { href: '/okrs', label: 'OKRs', icon: Target },
   { href: '/import', label: 'Import', icon: FileUp },
-  { href: '/groups', label: 'Groups', icon: Tags },
-  { href: '/positions', label: 'Positions', icon: Briefcase },
   { href: '/departments', label: 'Departments', icon: Layers },
   { href: '/locations', label: 'Locations', icon: MapPin },
-  { href: '/organisation', label: 'Organisation', icon: Building2 },
   { href: '/reports', label: 'Reports', icon: LineChart },
-  { href: '/scenarios', label: 'Scenarios', icon: GitBranch },
   { href: '/assistant', label: 'Assistant', icon: Sparkles },
   { href: '/integrations', label: 'Integrations', icon: Plug },
   { href: '/administration', label: 'Admin', icon: Settings },
@@ -63,10 +55,8 @@ export function AppSidebar({
   useEffect(() => {
     fetch('/api/v1/assistant')
       .then((response) => (response.ok ? response.json() : null))
-      .then((payload: { settings?: { privacyReviewComplete?: boolean; modelConnected?: boolean } } | null) => {
-        setAssistantOn(
-          payload?.settings?.privacyReviewComplete === true && payload?.settings?.modelConnected === true,
-        );
+      .then((payload: { settings?: { modelConnected?: boolean } } | null) => {
+        setAssistantOn(payload?.settings?.modelConnected === true);
       })
       .catch(() => undefined);
   }, []);

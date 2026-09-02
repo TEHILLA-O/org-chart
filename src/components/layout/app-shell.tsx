@@ -10,11 +10,13 @@ export function AppShell({
   userEmail,
   role,
   demo,
+  organisationName = 'Opply',
 }: {
   children: React.ReactNode;
   userEmail: string;
   role: string;
   demo?: boolean;
+  organisationName?: string;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
@@ -31,7 +33,7 @@ export function AppShell({
       <div className="flex min-w-0 flex-1 flex-col">
         {isChart ? null : (
           <header className="page-enter no-print flex h-14 shrink-0 items-center justify-between gap-4 px-6">
-            <p className="text-sm text-[var(--muted-foreground)]">Northstar Holdings</p>
+            <p className="text-sm text-[var(--muted-foreground)]">{organisationName}</p>
             {demo ? (
               <p className="text-xs text-[var(--muted-foreground)]">
                 Hosted demo — in-memory data, changes are not saved

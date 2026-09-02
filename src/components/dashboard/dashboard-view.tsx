@@ -20,6 +20,7 @@ interface Health {
 }
 
 interface Metrics {
+  organisationName?: string;
   people: number;
   positions: number;
   vacantPositions: number;
@@ -67,7 +68,7 @@ export function DashboardView() {
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-sm text-[var(--muted-foreground)]">Northstar Holdings</p>
+        <p className="text-sm text-[var(--muted-foreground)]">{data?.organisationName ?? 'Opply'}</p>
         <h1 className="text-3xl font-semibold tracking-tight">Organisation pulse</h1>
       </div>
       <div className="stagger-in grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

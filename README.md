@@ -34,7 +34,7 @@ Open http://localhost:3000 and sign in:
 | Editor | `editor@northstar.example`    | `OrgPulse!dev` |
 | Viewer | `viewer@northstar.example`    | `OrgPulse!dev` |
 
-Seed data is a fictional company, **Northstar Holdings**: ~150 people,
+Seed data is a fictional company, **Opply**: ~150 people,
 8 departments, 5 locations, vacancies, dotted-line reports and provenance
 from the mock Microsoft connector.
 

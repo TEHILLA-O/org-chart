@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/db';
 import { connectorMode, resolveConnector } from '@/connectors/registry';
 import { applyMockRipplingLeave } from '@/connectors/rippling-mock/live-fields';
+import { decryptConnectorSecrets } from '@/lib/connector-secrets';
+import { config } from '@/lib/config';
 import { isDemoMode } from '@/demo/mode';
 import { demoConnectors } from '@/demo/northstar';
 
@@ -45,14 +47,22 @@ export async function checkAllSources(organisationId: string, options?: { refres
 
   for (const connector of connectors) {
     const stored = (connector.config ?? {}) as Record<string, unknown>;
-    const mode = connectorMode(connector.provider, stored);
+    const secrets = decryptConnectorSecrets(connector.encryptedCredentials);
+    if (connector.provider === 'RIPPLING' && !secrets.apiToken && config().RIPPLING_API_TOKEN) {
+      secrets.apiToken = config().RIPPLING_API_TOKEN;
+    }
+    const mode =
+      connector.provider === 'RIPPLING' && (secrets.apiToken || stored.mode === 'real')
+        ? 'real'
+        : connectorMode(connector.provider, stored);
     let test = { ok: false, message: 'Connector did not respond.' };
 
     try {
-      const adapter = resolveConnector(connector.provider, mode);
+      const adapter = resolveConnector(connector.provider, mode, secrets);
       test = await adapter.testConnection({
         organisationId,
         settings: stored,
+        credentials: secrets,
       });
     } catch (error) {
       test = {

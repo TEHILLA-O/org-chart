@@ -108,7 +108,7 @@ for (const seat of seats) {
       status: 'ACTIVE',
       holidayRemainingDays: 18,
       groupIds: seat.managerKey === null || ['cfo', 'cpo', 'cto', 'coo', 'cco'].includes(seat.key) ? [groups[0]!.id, groups[1]!.id] : [groups[0]!.id],
-      bio: `${seat.firstName} holds ${seat.title} at Northstar Holdings.`,
+      bio: `${seat.firstName} holds ${seat.title} at Opply.`,
       employeeId: `NST-${seat.key.toUpperCase()}`,
       skills: seat.skills ?? [],
     });
@@ -171,7 +171,7 @@ export function demoChart() {
   return {
     id: 'chart-northstar',
     organisationId: DEMO_ORG_ID,
-    name: 'Northstar — Company',
+    name: 'Opply — Company',
     isDefault: true,
     deletedAt: null,
     configuration: { collapsedPositionIds: [] as string[], showSecondaryLines: true },
@@ -181,7 +181,7 @@ export function demoChart() {
 export function demoOrganisation() {
   return {
     id: DEMO_ORG_ID,
-    name: 'Northstar Holdings',
+    name: 'Opply',
     slug: 'northstar',
     timezone: 'Europe/London',
     settings: {},
@@ -304,6 +304,7 @@ export function demoConnectors() {
       lastSuccessfulSyncAt: now.toISOString(),
       mode: 'mock' as const,
       identityCount: demoPeople.length,
+      hasCredentials: false,
       recentJobs: [{ id: 'job-1', status: 'COMPLETED', mode: 'APPLY', createdCount: demoPeople.length, updatedCount: 0, finishedAt: now.toISOString() }],
     },
     {
@@ -316,6 +317,20 @@ export function demoConnectors() {
       lastSuccessfulSyncAt: now.toISOString(),
       mode: 'mock' as const,
       identityCount: 0,
+      hasCredentials: false,
+      recentJobs: [],
+    },
+    {
+      id: 'conn-rp',
+      provider: 'RIPPLING',
+      name: 'Rippling',
+      status: 'NOT_CONFIGURED',
+      isReadOnly: true,
+      lastSyncAt: null,
+      lastSuccessfulSyncAt: null,
+      mode: 'mock' as const,
+      identityCount: 0,
+      hasCredentials: false,
       recentJobs: [],
     },
   ];
@@ -325,6 +340,7 @@ export function demoDashboard() {
   const occupied = new Set(demoAssignments.map((row) => row.positionId));
   const vacantPositions = demoPositions.filter((position) => !occupied.has(position.id)).length;
   return {
+    organisationName: 'Opply',
     people: demoPeople.length,
     positions: demoPositions.length,
     vacantPositions,

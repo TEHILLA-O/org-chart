@@ -8,6 +8,7 @@ import { mapImportRows } from '@/domain/import/validate';
 import { detectPrimaryCycle } from '@/domain/org/cycle';
 import { can, type Actor } from '@/domain/permissions/policy';
 import { assertWritable } from '@/demo/mode';
+import { collectDeterministicReview } from '@/server/services/import-agent-service';
 
 const MAX_ROWS = 2_000;
 
@@ -25,8 +26,11 @@ export async function createImportJob(input: {
   if (Buffer.byteLength(input.text, 'utf8') > config().IMPORT_MAX_BYTES) {
     throw new ValidationAppError('That file is larger than the import limit.');
   }
-  if (!input.fileName.toLowerCase().endsWith('.csv') && !input.mimeType.includes('csv')) {
-    throw new ValidationAppError('Upload a CSV file. Save Excel workbooks as CSV first.');
+  if (!input.fileName.toLowerCase().endsWith('.csv')) {
+    const mime = (input.mimeType || '').toLowerCase();
+    if (!mime.includes('csv') && mime !== 'application/vnd.ms-excel') {
+      throw new ValidationAppError('Upload a CSV file. Save Excel workbooks as CSV first.');
+    }
   }
 
   const parsed = parseCsv(input.text);
@@ -118,7 +122,7 @@ export async function applyImportJob(organisationId: string, actor: Actor, id: s
     where: { organisationId, deletedAt: null, effectiveTo: null, isPrimary: true },
     select: { subordinatePositionId: true, managerPositionId: true },
   });
-  const proposedEdges = currentEdges.map((edge) => ({ ...edge }));
+  const liveEdges = currentEdges.map((edge) => ({ ...edge }));
 
   let createdCount = 0;
   let updatedCount = 0;
@@ -228,25 +232,31 @@ export async function applyImportJob(organisationId: string, actor: Actor, id: s
       }
     }
 
+    const reportingToWrite: Array<{ subordinatePositionId: string; managerPositionId: string }> = [];
     for (const item of createdPositionIds) {
       const managerPerson =
         (item.values.managerEmail ? peopleByEmail.get(item.values.managerEmail.toLowerCase()) : undefined) ??
         (item.values.managerName ? peopleByName.get(item.values.managerName.toLowerCase()) : undefined);
       const managerPositionId = managerPerson ? positionByPersonId.get(managerPerson.id) : undefined;
-      if (managerPositionId && managerPositionId !== item.positionId) {
-        const idx = proposedEdges.findIndex((edge) => edge.subordinatePositionId === item.positionId);
-        const next = { subordinatePositionId: item.positionId, managerPositionId };
-        if (idx >= 0) proposedEdges[idx] = next;
-        else proposedEdges.push(next);
+      if (!managerPositionId || managerPositionId === item.positionId) continue;
+      const candidate = { subordinatePositionId: item.positionId, managerPositionId };
+      const cycle = detectPrimaryCycle([...liveEdges, ...reportingToWrite], candidate);
+      if (cycle.cyclic) {
+        errorCount += 1;
+        await tx.importRow.update({
+          where: { id: item.rowId },
+          data: {
+            errors: [
+              `Seat was imported, but reporting was skipped to avoid a cycle: ${cycle.path.join(' → ')}`,
+            ],
+          },
+        });
+        continue;
       }
+      reportingToWrite.push(candidate);
     }
 
-    const cycle = detectPrimaryCycle(proposedEdges);
-    if (cycle.cyclic) {
-      throw new ValidationAppError(`Import would create a reporting cycle: ${cycle.path.join(' → ')}`);
-    }
-
-    for (const edge of proposedEdges) {
+    for (const edge of reportingToWrite) {
       const existing = await tx.reportingRelationship.findFirst({
         where: {
           organisationId,
@@ -312,6 +322,28 @@ async function summariseJob(id: string, organisationId?: string) {
     _count: { _all: true },
   });
   const byStatus = Object.fromEntries(counts.map((row) => [row.status, row._count._all]));
+  let review: Awaited<ReturnType<typeof collectDeterministicReview>> = {
+    findings: [],
+    tree: [],
+    readyCount: (byStatus.NEW as number | undefined) ?? 0,
+  };
+  if (job.status !== 'COMPLETED') {
+    try {
+      review = await collectDeterministicReview(job.organisationId, job.id);
+    } catch {
+      review = {
+        findings: [
+          {
+            severity: 'warning',
+            kind: 'data',
+            message: 'File preview is ready. Extra duplicate checks could not run.',
+          },
+        ],
+        tree: [],
+        readyCount: (byStatus.NEW as number | undefined) ?? 0,
+      };
+    }
+  }
   return {
     job: {
       id: job.id,
@@ -335,6 +367,12 @@ async function summariseJob(id: string, organisationId?: string) {
       invalid: byStatus.INVALID ?? 0,
       duplicate: byStatus.DUPLICATE ?? 0,
       applied: byStatus.APPLIED ?? 0,
+    },
+    review: {
+      findings: review.findings,
+      tree: review.tree.slice(0, 20),
+      warningCount: review.findings.filter((finding) => finding.severity === 'warning').length,
+      errorCount: review.findings.filter((finding) => finding.severity === 'error').length,
     },
   };
 }

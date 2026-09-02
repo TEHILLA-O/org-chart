@@ -12,7 +12,7 @@ import { loadDefaultChart, loadOrgGroups, loadOrganisationGraph } from '@/reposi
 import { NotFoundError } from '@/lib/errors';
 import { loadLiveOrOverlayGraph } from '@/server/services/scenario-service';
 import { isDemoMode } from '@/demo/mode';
-import { demoPersonRecord, demoPersonSkills } from '@/demo/northstar';
+import { displayCompanyName } from '@/lib/utils';
 
 function redactShareNodes(nodes: ChartNodeModel[], allowedFields: readonly string[]): ChartNodeModel[] {
   const ctx = { actor: null, isShareLink: true, allowedFields };
@@ -75,7 +75,7 @@ export async function getChartPayload(options: {
     : projected.nodes;
 
   return {
-    chart: options.share ? (chart ? { name: chart.name } : null) : chart,
+    chart: chart ? { id: chart.id, name: displayCompanyName(chart.name) } : null,
     scenario,
     groups: groups.map((group) => ({
       id: group.id,

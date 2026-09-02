@@ -40,6 +40,7 @@ export function ChartToolbar({
   onMode,
   canEdit,
   onFit,
+  onAutoLayout,
   surface,
   onSurface,
   spotlight,
@@ -67,6 +68,7 @@ export function ChartToolbar({
   onMode: (mode: 'LIVE' | 'PLANNING') => void;
   canEdit: boolean;
   onFit: () => void;
+  onAutoLayout?: () => void;
   surface: ChartSurface;
   onSurface: (surface: ChartSurface) => void;
   spotlight: boolean;
@@ -271,6 +273,11 @@ export function ChartToolbar({
             <Button variant="outline" size="sm" onClick={onFit}>
               Zoom to fit
             </Button>
+            {onAutoLayout ? (
+              <Button variant="outline" size="sm" onClick={onAutoLayout}>
+                Auto layout
+              </Button>
+            ) : null}
             <Button
               variant={spotlight ? 'gold' : 'outline'}
               size="sm"

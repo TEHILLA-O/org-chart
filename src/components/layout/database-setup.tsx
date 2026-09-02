@@ -21,7 +21,7 @@ export function DatabaseSetup({ message }: { message?: string }) {
             Point <code>DATABASE_URL</code> at a hosted Postgres. Apply migrations with{' '}
             <code>npx prisma migrate deploy</code>.
           </li>
-          <li>Seed Northstar with <code>npx prisma db seed</code> if you want the demo organisation.</li>
+          <li>Seed Opply with <code>npx prisma db seed</code> if you want the demo organisation.</li>
         </ol>
       </div>
     </div>
